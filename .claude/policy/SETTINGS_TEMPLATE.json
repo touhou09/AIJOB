@@ -1,0 +1,14 @@
+{
+  "_comment": "프로젝트 특성에 맞게 allow/deny를 조정할 것",
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(jq *)",
+      "Bash(yq *)",
+      "Bash(curl *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)"
+    ]
+  }
+}

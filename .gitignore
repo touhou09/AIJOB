@@ -1,0 +1,20 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Credentials
+*.pem
+*.key
+credentials.json
+kubeconfig
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
