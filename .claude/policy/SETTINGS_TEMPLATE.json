@@ -3,12 +3,43 @@
   "permissions": {
     "allow": [
       "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(curl *)",
       "Bash(jq *)",
       "Bash(yq *)",
-      "Bash(curl *)"
+      "Bash(sudo *)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(docker compose *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(ssh-keygen *)",
+      "Bash(kubectl *)",
+      "Bash(helm *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(ls *)",
+      "Bash(cd *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(pnpm *)",
+      "Bash(yarn *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(pip3 *)",
+      "Bash(uv *)",
+      "Bash(cargo *)",
+      "Bash(go *)",
+      "Bash(make *)"
     ],
     "deny": [
       "Bash(rm -rf *)"
     ]
+  },
+  "channelsEnabled": true,
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   }
 }

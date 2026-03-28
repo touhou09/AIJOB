@@ -58,7 +58,8 @@
 > 새 작업 계열 발생 시 카테고리 자동 추가
 
 ## 핵심 명령어
-- (프로젝트 설정 후 추가)
+- `init.sh <target> [branch]` — 타겟 프로젝트에 Claude Code 환경 복제
+- `git checkout <branch>` — 환경 프로필 전환 (master/work/personal 등)
 
 ## 보안 규칙
 - .env, credentials, API key 등 시크릿 파일 커밋 금지

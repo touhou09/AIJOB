@@ -13,8 +13,30 @@ kubeconfig
 .DS_Store
 Thumbs.db
 
+# Build outputs
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+.output/
+__pycache__/
+*.pyc
+*.pyo
+target/
+*.egg-info/
+
+# Package locks (프로젝트별 관리)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# Logs
+*.log
+npm-debug.log*

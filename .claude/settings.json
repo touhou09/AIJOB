@@ -16,7 +16,21 @@
       "Bash(grep *)",
       "Bash(rg *)",
       "Bash(ls *)",
-      "Bash(cd *)"
+      "Bash(cd *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(pnpm *)",
+      "Bash(yarn *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(pip3 *)",
+      "Bash(uv *)",
+      "Bash(cargo *)",
+      "Bash(go *)",
+      "Bash(make *)",
+      "Bash(gh *)"
     ],
     "deny": [
       "Bash(rm -rf *)"
