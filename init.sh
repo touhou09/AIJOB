@@ -1,37 +1,39 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_URL="https://github.com/touhou09/AIJOB.git"
 
 usage() {
-  echo "Usage: $0 <target-directory> [branch]"
+  echo "Usage: $0 [target-directory] [branch]"
   echo ""
-  echo "  target-directory  .claude/ 구조를 세팅할 프로젝트 경로"
+  echo "  target-directory  .claude/ 구조를 세팅할 프로젝트 경로 (생략 시 전역 ~/.claude/)"
   echo "  branch            AIJOB 브랜치 (기본: master)"
   echo ""
   echo "Examples:"
-  echo "  $0 ~/projects/my-app"
-  echo "  $0 ~/projects/my-app work"
-  echo "  $0 ~/projects/my-app personal"
+  echo "  $0                          # 전역 설정"
+  echo "  $0 ~/projects/my-app        # 프로젝트 설정 (master)"
+  echo "  $0 ~/projects/my-app work   # 프로젝트 설정 (work 브랜치)"
+  echo "  $0 . personal               # 현재 디렉토리에 personal 브랜치 설정"
   exit 1
 }
 
-[[ $# -lt 1 ]] && usage
+# -h, --help 처리
+[[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
 
-TARGET="$(realpath "$1")"
 BRANCH="${2:-master}"
+GLOBAL_MODE=false
 
-if [[ ! -d "$TARGET" ]]; then
-  echo "Error: $TARGET 디렉토리가 존재하지 않습니다."
-  exit 1
-fi
-
-if [[ -d "$TARGET/.claude" ]]; then
-  echo "Warning: $TARGET/.claude 이미 존재합니다."
-  read -rp "덮어쓸까요? (y/N): " confirm
-  [[ "$confirm" != "y" && "$confirm" != "Y" ]] && exit 0
-  rm -rf "$TARGET/.claude"
+if [[ $# -lt 1 ]]; then
+  GLOBAL_MODE=true
+  TARGET="$HOME"
+  CLAUDE_DIR="$HOME/.claude"
+else
+  TARGET="$(realpath "$1")"
+  CLAUDE_DIR="$TARGET/.claude"
+  if [[ ! -d "$TARGET" ]]; then
+    echo "Error: $TARGET 디렉토리가 존재하지 않습니다."
+    exit 1
+  fi
 fi
 
 # 임시 디렉토리에 해당 브랜치 클론
@@ -41,41 +43,96 @@ trap 'rm -rf "$TMPDIR"' EXIT
 echo "[$BRANCH] 브랜치에서 템플릿 가져오는 중..."
 git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$TMPDIR" 2>/dev/null
 
-# .claude/ 구조 복사
-cp -r "$TMPDIR/.claude" "$TARGET/.claude"
+# .claude/ 디렉토리 생성 (없으면)
+mkdir -p "$CLAUDE_DIR"
 
-# CLAUDE.md 복사 (없을 때만)
-if [[ ! -f "$TARGET/CLAUDE.md" ]]; then
+# --- 덮어쓰기 대상 (레포 우선) ---
+
+# CLAUDE.md
+if [[ "$GLOBAL_MODE" == true ]]; then
+  cp "$TMPDIR/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+  echo "✓ ~/.claude/CLAUDE.md 덮어쓰기"
+else
   cp "$TMPDIR/CLAUDE.md" "$TARGET/CLAUDE.md"
+  PROJECT_NAME="$(basename "$TARGET")"
+  sed -i '' "s/{프로젝트명}/$PROJECT_NAME/g" "$TARGET/CLAUDE.md"
+  echo "✓ CLAUDE.md 덮어쓰기"
+fi
+
+# CONTEXT.md, DECISIONS.md, STATE.md (레포 우선 덮어쓰기)
+for f in CONTEXT.md DECISIONS.md STATE.md; do
+  if [[ -f "$TMPDIR/.claude/$f" ]]; then
+    cp "$TMPDIR/.claude/$f" "$CLAUDE_DIR/$f"
+    echo "✓ .claude/$f 덮어쓰기"
+  fi
+done
+
+# settings.json (레포 우선 덮어쓰기)
+if [[ -f "$TMPDIR/.claude/settings.json" ]]; then
+  cp "$TMPDIR/.claude/settings.json" "$CLAUDE_DIR/settings.json"
+  echo "✓ .claude/settings.json 덮어쓰기"
+fi
+
+# --- 병합 대상 (기존 유지 + 없는 파일만 추가) ---
+
+# work/ 병합
+if [[ -d "$TMPDIR/.claude/work" ]]; then
+  mkdir -p "$CLAUDE_DIR/work"
+  for f in "$TMPDIR/.claude/work/"*; do
+    fname="$(basename "$f")"
+    if [[ ! -f "$CLAUDE_DIR/work/$fname" ]]; then
+      cp "$f" "$CLAUDE_DIR/work/$fname"
+      echo "✓ .claude/work/$fname 추가"
+    else
+      echo "  .claude/work/$fname 이미 존재 — 건너뜀"
+    fi
+  done
+fi
+
+# policy/ 병합
+if [[ -d "$TMPDIR/.claude/policy" ]]; then
+  mkdir -p "$CLAUDE_DIR/policy"
+  for f in "$TMPDIR/.claude/policy/"*; do
+    fname="$(basename "$f")"
+    if [[ ! -f "$CLAUDE_DIR/policy/$fname" ]]; then
+      cp "$f" "$CLAUDE_DIR/policy/$fname"
+      echo "✓ .claude/policy/$fname 추가"
+    else
+      echo "  .claude/policy/$fname 이미 존재 — 건너뜀"
+    fi
+  done
+fi
+
+# .gitignore 병합 (프로젝트 모드에서만)
+if [[ "$GLOBAL_MODE" == false ]]; then
+  if [[ ! -f "$TARGET/.gitignore" ]]; then
+    cp "$TMPDIR/.gitignore" "$TARGET/.gitignore"
+    echo "✓ .gitignore 복사"
+  else
+    added=0
+    while IFS= read -r line; do
+      [[ -z "$line" || "$line" == \#* ]] && continue
+      if ! grep -qxF "$line" "$TARGET/.gitignore" 2>/dev/null; then
+        echo "$line" >> "$TARGET/.gitignore"
+        ((added++))
+      fi
+    done < "$TMPDIR/.gitignore"
+    echo "✓ .gitignore 병합 (${added}개 항목 추가)"
+  fi
+fi
+
+echo ""
+if [[ "$GLOBAL_MODE" == true ]]; then
+  echo "완료! 전역 Claude Code 환경이 세팅되었습니다."
+  echo ""
+  echo "  ~/.claude/CLAUDE.md      — 글로벌 가이드"
+  echo "  ~/.claude/STATE.md       — 현재 상태"
+  echo "  ~/.claude/CONTEXT.md     — 컨텍스트"
+  echo "  ~/.claude/settings.json  — 설정"
 else
-  echo "CLAUDE.md 이미 존재 — 건너뜀"
+  echo "완료! $TARGET 에 Claude Code 환경이 세팅되었습니다."
+  echo ""
+  echo "  CLAUDE.md              — 세션 가이드"
+  echo "  .claude/STATE.md       — 현재 상태 (수정 필요)"
+  echo "  .claude/CONTEXT.md     — 프로젝트 컨텍스트 (수정 필요)"
 fi
-
-# .gitignore 병합 (없으면 복사, 있으면 누락 항목만 추가)
-if [[ ! -f "$TARGET/.gitignore" ]]; then
-  cp "$TMPDIR/.gitignore" "$TARGET/.gitignore"
-else
-  while IFS= read -r line; do
-    [[ -z "$line" || "$line" == \#* ]] && continue
-    grep -qxF "$line" "$TARGET/.gitignore" 2>/dev/null || echo "$line" >> "$TARGET/.gitignore"
-  done < "$TMPDIR/.gitignore"
-  echo ".gitignore 병합 완료"
-fi
-
-# policy/ 디렉토리는 복사하지 않음 (원본 레포에만 유지)
-rm -rf "$TARGET/.claude/policy"
-
-# 프로젝트 이름으로 플레이스홀더 치환
-PROJECT_NAME="$(basename "$TARGET")"
-if [[ -f "$TARGET/CLAUDE.md" ]]; then
-  sed -i "s/{프로젝트명}/$PROJECT_NAME/g" "$TARGET/CLAUDE.md"
-fi
-
-echo ""
-echo "완료! $TARGET 에 Claude Code 환경이 세팅되었습니다."
-echo ""
-echo "  CLAUDE.md          — 세션 가이드"
-echo "  .claude/STATE.md   — 현재 상태 (수정 필요)"
-echo "  .claude/CONTEXT.md — 프로젝트 컨텍스트 (수정 필요)"
-echo ""
-echo "다음 단계: CONTEXT.md에 프로젝트 목적과 기술 스택을 정의하세요."
