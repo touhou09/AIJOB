@@ -50,8 +50,21 @@ mkdir -p "$CLAUDE_DIR"
 
 # CLAUDE.md
 if [[ "$GLOBAL_MODE" == true ]]; then
-  cp "$TMPDIR/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
-  echo "✓ ~/.claude/CLAUDE.md 덮어쓰기"
+  if [[ -f "$HOME/.claude/CLAUDE.md" ]]; then
+    # 전역 모드: 기존 내용 유지 + 템플릿 병합 (구분선으로 append)
+    MARKER="# --- AIJOB Template ---"
+    # 기존 AIJOB 섹션이 있으면 제거 후 다시 추가
+    if grep -qF "$MARKER" "$HOME/.claude/CLAUDE.md" 2>/dev/null; then
+      sed -i "/$MARKER/,\$d" "$HOME/.claude/CLAUDE.md"
+    fi
+    echo "" >> "$HOME/.claude/CLAUDE.md"
+    echo "$MARKER" >> "$HOME/.claude/CLAUDE.md"
+    cat "$TMPDIR/CLAUDE.md" >> "$HOME/.claude/CLAUDE.md"
+    echo "✓ ~/.claude/CLAUDE.md 병합 (기존 유지 + AIJOB 템플릿 추가)"
+  else
+    cp "$TMPDIR/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+    echo "✓ ~/.claude/CLAUDE.md 생성"
+  fi
 else
   cp "$TMPDIR/CLAUDE.md" "$TARGET/CLAUDE.md"
   PROJECT_NAME="$(basename "$TARGET")"
