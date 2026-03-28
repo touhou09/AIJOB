@@ -3,10 +3,27 @@
     "allow": [
       "Bash(git *)",
       "Bash(curl *)",
-      "Bash(jq *)"
+      "Bash(jq *)",
+      "Bash(sudo *)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(docker compose *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(ssh-keygen *)",
+      "Bash(kubectl *)",
+      "Bash(helm *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(ls *)",
+      "Bash(cd *)"
     ],
     "deny": [
       "Bash(rm -rf *)"
     ]
+  },
+  "channelsEnabled": true,
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   }
 }
