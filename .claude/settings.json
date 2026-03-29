@@ -36,7 +36,9 @@
       "Bash(cp *)",
       "Bash(mv *)",
       "Bash(bun *)",
-      "Bash(tmux *)"
+      "Bash(tmux *)",
+      "Edit(*)",
+      "Write(*)"
     ],
     "deny": [
       "Bash(rm -rf *)"
