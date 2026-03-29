@@ -30,7 +30,13 @@
       "Bash(cargo *)",
       "Bash(go *)",
       "Bash(make *)",
-      "Bash(gh *)"
+      "Bash(gh *)",
+      "Bash(cat *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(bun *)",
+      "Bash(tmux *)"
     ],
     "deny": [
       "Bash(rm -rf *)"
@@ -38,6 +44,11 @@
   },
   "channelsEnabled": true,
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_SPAWN_BACKEND": "tmux",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80"
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
   }
 }
