@@ -102,16 +102,30 @@ if [[ -d "$TMPDIR/.claude/work" ]]; then
   done
 fi
 
-# policy/ 병합
-if [[ -d "$TMPDIR/.claude/policy" ]]; then
-  mkdir -p "$CLAUDE_DIR/policy"
-  for f in "$TMPDIR/.claude/policy/"*; do
+# rules/ 병합
+if [[ -d "$TMPDIR/.claude/rules" ]]; then
+  mkdir -p "$CLAUDE_DIR/rules"
+  for f in "$TMPDIR/.claude/rules/"*; do
     fname="$(basename "$f")"
-    if [[ ! -f "$CLAUDE_DIR/policy/$fname" ]]; then
-      cp "$f" "$CLAUDE_DIR/policy/$fname"
-      echo "✓ .claude/policy/$fname 추가"
+    if [[ ! -f "$CLAUDE_DIR/rules/$fname" ]]; then
+      cp "$f" "$CLAUDE_DIR/rules/$fname"
+      echo "✓ .claude/rules/$fname 추가"
     else
-      echo "  .claude/policy/$fname 이미 존재 — 건너뜀"
+      echo "  .claude/rules/$fname 이미 존재 — 건너뜀"
+    fi
+  done
+fi
+
+# commands/ 병합
+if [[ -d "$TMPDIR/.claude/commands" ]]; then
+  mkdir -p "$CLAUDE_DIR/commands"
+  for f in "$TMPDIR/.claude/commands/"*; do
+    fname="$(basename "$f")"
+    if [[ ! -f "$CLAUDE_DIR/commands/$fname" ]]; then
+      cp "$f" "$CLAUDE_DIR/commands/$fname"
+      echo "✓ .claude/commands/$fname 추가"
+    else
+      echo "  .claude/commands/$fname 이미 존재 — 건너뜀"
     fi
   done
 fi
