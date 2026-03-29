@@ -39,10 +39,23 @@
 3. `[DEBT]` 태그 항목이 있으면 DECISIONS.md 이동 여부 확인
 4. `.claude/STATE.md` 갱신 (현재 상태 + 다음 작업)
 
-### Step 5: 결과 출력
+### Step 5: 구현 계획 진행 상태 갱신
+1. `.omc/plans/aivalink-implementation-plan.md` 읽기
+2. 완료된 Phase/Step에 ✅ + 커밋 해시 마킹
+3. 병렬 구조 다이어그램 갱신 (✅ / 미착수 표시)
+4. Phase 상태 레이블 갱신 ([미착수] → [진행 중] → [완료])
+
+### Step 6: 컨텍스트 문서 동기화
+1. `.claude/CONTEXT.md` — 새 모듈/디렉토리가 추가되었으면 디렉토리 구조 갱신
+2. `.claude/DECISIONS.md` — [DEBT] 항목이 있으면 AD 번호 부여하여 이동
+3. gstack 디자인 문서 (`~/.gstack/projects/`) — 존재하면 Status 갱신
+
+### Step 7: 결과 출력
 기록 완료 후 요약 출력:
 - 기록 위치: `work/{category}.md`
 - 현재 줄 수 / 200줄 한도
 - STATE.md 갱신 여부
+- 구현 계획 갱신 여부
+- CONTEXT.md / DECISIONS.md 갱신 여부
 
 사용법: `/project:done`
