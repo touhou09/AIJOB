@@ -36,10 +36,7 @@
       "Bash(cp *)",
       "Bash(mv *)",
       "Bash(bun *)",
-      "Bash(tmux *)",
-      "Bash(ov *)",
-      "Bash(openviking *)",
-      "Bash(openviking-server *)"
+      "Bash(tmux *)"
     ],
     "deny": [
       "Bash(rm -rf *)"
@@ -53,10 +50,5 @@
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
-  },
-  "mcpServers": {
-    "openviking": {
-      "url": "http://127.0.0.1:2033/sse"
-    }
   }
 }
