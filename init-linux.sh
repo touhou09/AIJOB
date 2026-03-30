@@ -130,6 +130,17 @@ if [[ -d "$TMPDIR/.claude/commands" ]]; then
   done
 fi
 
+# hooks/ 덮어쓰기 (settings.json이 참조하므로 항상 최신 유지)
+if [[ -d "$TMPDIR/.claude/hooks" ]]; then
+  mkdir -p "$CLAUDE_DIR/hooks"
+  for f in "$TMPDIR/.claude/hooks/"*; do
+    fname="$(basename "$f")"
+    cp "$f" "$CLAUDE_DIR/hooks/$fname"
+    chmod +x "$CLAUDE_DIR/hooks/$fname"
+  done
+  echo "✓ .claude/hooks/ 덮어쓰기"
+fi
+
 # .gitignore 병합 (프로젝트 모드에서만)
 if [[ "$GLOBAL_MODE" == false ]]; then
   if [[ ! -f "$TARGET/.gitignore" ]]; then
