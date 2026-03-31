@@ -40,3 +40,6 @@ target/
 # Logs
 *.log
 npm-debug.log*
+
+# Claude session artifacts
+.claude/session-log.jsonl
