@@ -5,12 +5,23 @@
 - **문서 먼저, 작업은 이후**: TODO.md에 계획이 확정된 후 착수.
 - **TODO에 Jira 티켓 없으면 경고**: Jira에 없는 작업은 먼저 티켓 생성 요청.
 
-## 4단 업무 흐름
+## Jira 상태 흐름
 ```
-Jira(원본) → roadmap(분기) → weekly(주간) → TODO(일일)
+Inbox → Ready → To Do(In Progress) → Review ←→ Ready (핑퐁) → Done
 ```
+- Inbox: 기한 짧은 순 + 심각도 높은 순으로 Ready 선별
+- Ready ↔ TODO.md: 항상 일치 (TODO에 있으면 Ready, 빠지면 Inbox 복귀)
+- Review → Ready: 피드백 받으면 담당자 본인 복귀 + 재작업
+- Review → Done: 리뷰 통과 시
+
+## 문서 흐름
+```
+TODO.md (일일) → work/ (주간) → docs/ (장기)
+                              → DECISIONS.md (결정 사항)
+```
+- 하루 끝: TODO 완료 항목 → work/{category}.md로 이동
+- Done 후: 문서화 가치 있는 항목 → docs/로 이동
 - 역방향 흐름 금지 (TODO에서 직접 roadmap 수정 불가)
-- 완료 시: TODO 삭제 → weekly 체크 → roadmap 진행률 갱신
 
 ## 상태 자동 전환
 Claude는 다음 6개 시점에서 Jira 상태를 자동 전환한다:

@@ -4,12 +4,13 @@ description: "AI 세션 시작/종료 운영 정책"
 
 # 세션 정책
 
-## 세션 시작 절차
+## 세션 시작 절차 (Hot Tier 전부 로드)
 1. `CLAUDE.md` 자동 로드 (Claude Code 기본 동작)
 2. `.claude/STATE.md` 읽고 현재 상태 파악
-3. `.claude/TODO.md` 읽고 오늘의 작업 확인
-4. 사용자 요청에 해당하는 `.claude/work/{category}.md` 로드
-5. 필요 시 `CONTEXT.md`, `DECISIONS.md`, `endpoints/` 참조
+3. `.claude/CONTEXT.md` 읽고 프로젝트 컨텍스트 파악
+4. `.claude/DECISIONS.md` 읽고 결정 이력 파악
+5. `.claude/TODO.md` 읽고 오늘의 작업 확인 (Jira Ready와 항상 일치)
+6. 사용자 요청에 해당하는 `.claude/work/{category}.md` 로드
 
 ## 세션 종료 판단 흐름
 ```

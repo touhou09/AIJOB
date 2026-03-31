@@ -6,21 +6,26 @@ AI 협업 구조(.claude) 관리 레포. 브랜치별 프로필(master/personal/
 
 | Tier | 파일 | 단위 | 로드 시점 | 완료 시 |
 |------|------|------|----------|--------|
-| 1 (Hot) | 이 파일 + `.claude/STATE.md` + `.claude/TODO.md` | 일일 | 매 세션 자동 | 삭제 |
-| 2 (Warm) | @.claude/CONTEXT.md + @.claude/DECISIONS.md + @.claude/endpoints/ + @.claude/weekly.md | 주간 | 작업 시작 시 | 갱신 |
-| 3 (Cold) | `.claude/roadmap.md` + `.claude/runbooks/` + `.claude/integrations/` + `.claude/work/{category}.md` | 분기 | 해당 작업 시 | 완료 체크 |
+| 1 (Hot) | 이 파일 + `STATE.md` + `TODO.md` + `CONTEXT.md` + `DECISIONS.md` | 일일 | 매 세션 자동 | 갱신 |
+| 2 (Warm) | `endpoints/` + `weekly.md` | 주간 | 작업 시작 시 | 갱신 |
+| 3 (Cold) | `roadmap.md` + `runbooks/` + `integrations/` + `work/{category}.md` | 분기 | 해당 작업 시 | 완료 체크 |
 
-## 업무 흐름
+## Jira 상태 흐름
 ```
-Jira(원본) → roadmap(분기) → weekly(주간) → TODO(일일)
-완료 → TODO 삭제 → roadmap 체크
+Inbox → Ready → To Do(In Progress) → Review ←→ Ready (핑퐁) → Done
+```
+
+## 문서 흐름
+```
+TODO.md (일일) → work/ (주간) → docs/ (장기)
+                              → DECISIONS.md (결정 사항)
 ```
 
 ## 세션 시작
 1. STATE.md 읽고 현재 상태 파악
-2. TODO.md 읽고 오늘의 작업 확인
-3. 사용자 요청에 해당하는 work/ 파일 로드
-4. 필요 시 CONTEXT.md, DECISIONS.md 참조
+2. CONTEXT.md, DECISIONS.md 읽고 프로젝트 컨텍스트 + 결정 이력 파악
+3. TODO.md 읽고 오늘의 작업 확인
+4. 사용자 요청에 해당하는 work/ 파일 로드
 
 ## 작업 카테고리 인덱스
 
