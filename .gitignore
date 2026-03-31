@@ -43,3 +43,6 @@ npm-debug.log*
 
 # Claude session artifacts
 .claude/session-log.jsonl
+
+# Atlassian token (로컬 전용)
+.claude/.atlassian-token

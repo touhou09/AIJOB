@@ -3,7 +3,7 @@
 # 사용: source .claude/hooks/jira-lib.sh
 
 JIRA_BASE_URL="${JIRA_BASE_URL:-https://ingkle.atlassian.net}"
-JIRA_USER="${JIRA_USER:-seungju.yu@ingkle.com}"
+JIRA_USER="${JIRA_USER:?JIRA_USER 환경변수를 설정하세요 (예: user@ingkle.com)}"
 
 # 토큰 읽기 우선순위: 파일 → 환경변수 → Vault
 _atlassian_token_file() {
