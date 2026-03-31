@@ -25,7 +25,7 @@ Claude는 다음 6개 시점에서 Jira 상태를 자동 전환한다:
 | 6 | 블로커 발생 | → Blocked (있을 경우) |
 
 - 상태 전환은 Claude 자동, 담당자 변경은 사용자 요청 시에만
-- **외부 할당 업무 완료 규칙**: reporter ≠ assignee인 티켓은 Done이 아닌 Review로 전환. 요청자가 확인 후 Done 처리.
+- **외부 할당 업무 완료 규칙**: reporter ≠ assignee인 티켓은 Done이 아닌 Review로 전환 + 담당자를 reporter(요청자)로 변경. 요청자가 확인 후 Done 처리.
 
 ## 캐리오버 규칙
 - TODO 항목의 `캐리오버` 카운트를 일일 동기화 시 +1
