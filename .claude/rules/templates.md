@@ -79,9 +79,9 @@ description: "CLAUDE.md, settings.json, work 카테고리 생성 템플릿"
 
 ---
 
-| 이름 | URL/경로 | 상태 | 비고 |
-|------|---------|------|------|
-| {name} | {url} | active | {설명} |
+| 이름 | URL/경로 | 인증 | Vault 경로 / 비고 | 상태 |
+|------|---------|------|-------------------|------|
+| {name} | {url} | SSH / Token / OAuth | {vault 경로 또는 접근 조건} | active |
 
 ## 변경 이력
 - {date}: {변경 내용} (사유)

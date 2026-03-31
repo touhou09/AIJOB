@@ -4,9 +4,9 @@
 
 ---
 
-| 저장소 | 로컬 경로 | URL | 상태 | 비고 |
-|--------|----------|-----|------|------|
-| {repo-name} | {/path/to/repo} | {github-url} | active | {설명} |
+| 저장소 | 로컬 경로 | URL | 인증 | Vault 경로 / 비고 | 상태 |
+|--------|----------|-----|------|-------------------|------|
+| {repo-name} | {/path/to/repo} | {github-url} | SSH / HTTPS / Token | {vault 경로 또는 접근 조건} | active |
 
 ## 상태 값
 - `active`: 현재 사용 중
