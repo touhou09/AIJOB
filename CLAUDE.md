@@ -7,8 +7,8 @@ AI 협업 구조(.claude) 관리 레포. 브랜치별 프로필(master/personal/
 | Tier | 파일 | 단위 | 로드 시점 | 완료 시 |
 |------|------|------|----------|--------|
 | 1 (Hot) | 이 파일 + `STATE.md` + `TODO.md` + `CONTEXT.md` + `DECISIONS.md` | 일일 | 매 세션 자동 | 갱신 |
-| 2 (Warm) | `endpoints/` + `weekly.md` | 주간 | 작업 시작 시 | 갱신 |
-| 3 (Cold) | `roadmap.md` + `runbooks/` + `integrations/` + `work/{category}.md` | 분기 | 해당 작업 시 | 완료 체크 |
+| 2 (Warm) | `endpoints/` + `weekly/{YYYY-Www}.md` | 주간 | 작업 시작 시 | 갱신 |
+| 3 (Cold) | `roadmap/{YYYY-Qn}.md` + `runbooks/` + `integrations/` + `work/{category}.md` | 분기 | 해당 작업 시 | 완료 체크 |
 
 ## Jira 상태 흐름
 ```

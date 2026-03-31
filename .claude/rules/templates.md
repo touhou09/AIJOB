@@ -40,12 +40,12 @@ description: "CLAUDE.md, settings.json, work 카테고리 생성 템플릿"
 - (완료 시 여기로 이동, 세션 종료 시 삭제)
 ```
 
-## weekly.md 템플릿
+## weekly/{YYYY-Www}.md 템플릿
 ```markdown
-# 주간 작업 계획
+# {YYYY-Www} 주간 작업
 
-> 주차: {YYYY-Www}
-> 소스: roadmap.md → 주간 분해
+> 주차: {YYYY-Www} ({MM/DD} ~ {MM/DD})
+> 소스: roadmap/{YYYY-Qn}.md → 주간 분해
 
 ---
 
@@ -55,20 +55,24 @@ description: "CLAUDE.md, settings.json, work 카테고리 생성 템플릿"
 ## 진행 현황
 | 요일 | 완료 항목 | 블로커 |
 |------|----------|--------|
+
+## 다음 주 프리뷰
+- {다음 주 예상 작업}
 ```
 
-## roadmap.md 템플릿
+## roadmap/{YYYY-Qn}.md 템플릿
 ```markdown
-# 분기 로드맵
+# {YYYY-Qn} 로드맵
 
 > 분기: {YYYY-Qn}
 > 소스: Jira Epic/Initiative
+> 최종 동기화: {date}
 
 ---
 
 | # | Jira Epic | 목표 | 상태 | 주차 |
 |---|-----------|------|------|------|
-| 1 | {EPIC-000} | {분기 목표} | 미착수 | {W1-W4} |
+| 1 | {EPIC-000} | {분기 목표} | 미착수 | {W1-W13} |
 ```
 
 ## endpoints/ 템플릿
