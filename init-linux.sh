@@ -80,10 +80,30 @@ for f in CONTEXT.md DECISIONS.md STATE.md TODO.md weekly.md roadmap.md; do
   fi
 done
 
-# settings.json (레포 우선 덮어쓰기)
+# settings.json
 if [[ -f "$TMPDIR/.claude/settings.json" ]]; then
-  cp "$TMPDIR/.claude/settings.json" "$CLAUDE_DIR/settings.json"
-  echo "✓ .claude/settings.json 덮어쓰기"
+  if [[ "$GLOBAL_MODE" == true ]] && [[ -f "$CLAUDE_DIR/settings.json" ]]; then
+    # 전역 모드: 병합 (레포 = permissions/hooks/env, 기존 = statusLine/plugins/기타)
+    if command -v jq &>/dev/null; then
+      jq -s '
+        .[0] as $existing | .[1] as $repo |
+        $existing * {
+          permissions: $repo.permissions,
+          hooks: $repo.hooks,
+          env: ($existing.env // {} ) * ($repo.env // {}),
+          channelsEnabled: ($repo.channelsEnabled // $existing.channelsEnabled)
+        }
+      ' "$CLAUDE_DIR/settings.json" "$TMPDIR/.claude/settings.json" > "$CLAUDE_DIR/settings.json.tmp" \
+        && mv "$CLAUDE_DIR/settings.json.tmp" "$CLAUDE_DIR/settings.json"
+      echo "✓ .claude/settings.json 병합 (permissions/hooks/env: 레포, statusLine/plugins: 기존 유지)"
+    else
+      echo "⚠ jq 미설치 — settings.json 병합 불가, 기존 유지"
+    fi
+  else
+    # 프로젝트 모드: 덮어쓰기
+    cp "$TMPDIR/.claude/settings.json" "$CLAUDE_DIR/settings.json"
+    echo "✓ .claude/settings.json 덮어쓰기"
+  fi
 fi
 
 # --- 병합 대상 (기존 유지 + 없는 파일만 추가) ---
