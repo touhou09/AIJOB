@@ -5,7 +5,7 @@
 |------|---|
 | Base URL | `https://ingkle.atlassian.net` |
 | 인증 | Basic Auth (email:token → base64) |
-| 사용자 | `seungju.yu@ingkle.com` |
+| 사용자 | 환경변수 `JIRA_USER` (예: `user@ingkle.com`) |
 | 토큰 파일 | `~/.claude/.atlassian-token` (로컬 전용, 커밋 금지) |
 | 토큰 폴백 | 환경변수 `JIRA_API_TOKEN` |
 
