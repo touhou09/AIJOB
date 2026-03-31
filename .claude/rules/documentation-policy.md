@@ -9,6 +9,9 @@ description: "문서화 기준 및 work/ 생명주기 관리"
 | 위치 | 목적 | 대상 독자 | 예시 |
 |------|------|----------|------|
 | `.claude/work/` | 작업 재현 | AI (Claude) | 변경 파일, 명령어, 미완료 사항 |
+| `.claude/endpoints/` | 인프라 현황 | AI (Claude) | 저장소, 사이트, API 엔드포인트 |
+| `.claude/runbooks/` | 운영 절차 | 사람 + AI | 배포, 장애 대응, 롤백 |
+| `.claude/integrations/` | 외부 연동 | AI (Claude) | Jira, Vault, CI/CD 설정 |
 | `docs/` | 지식 공유 | 사람 + Confluence | 가이드, 런북, 아키텍처 설명 |
 | `DECISIONS.md` | 결정 이력 | AI + 사람 | 왜 이렇게 결정했는지 |
 

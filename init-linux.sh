@@ -73,7 +73,7 @@ else
 fi
 
 # CONTEXT.md, DECISIONS.md, STATE.md (레포 우선 덮어쓰기)
-for f in CONTEXT.md DECISIONS.md STATE.md; do
+for f in CONTEXT.md DECISIONS.md STATE.md TODO.md weekly.md roadmap.md; do
   if [[ -f "$TMPDIR/.claude/$f" ]]; then
     cp "$TMPDIR/.claude/$f" "$CLAUDE_DIR/$f"
     echo "✓ .claude/$f 덮어쓰기"
@@ -130,6 +130,51 @@ if [[ -d "$TMPDIR/.claude/commands" ]]; then
   done
 fi
 
+# endpoints/ 병합
+if [[ -d "$TMPDIR/.claude/endpoints" ]]; then
+  mkdir -p "$CLAUDE_DIR/endpoints"
+  for f in "$TMPDIR/.claude/endpoints/"*; do
+    fname="$(basename "$f")"
+    [[ "$fname" == ".gitkeep" ]] && continue
+    if [[ ! -f "$CLAUDE_DIR/endpoints/$fname" ]]; then
+      cp "$f" "$CLAUDE_DIR/endpoints/$fname"
+      echo "✓ .claude/endpoints/$fname 추가"
+    else
+      echo "  .claude/endpoints/$fname 이미 존재 — 건너뜀"
+    fi
+  done
+fi
+
+# runbooks/ 병합
+if [[ -d "$TMPDIR/.claude/runbooks" ]]; then
+  mkdir -p "$CLAUDE_DIR/runbooks"
+  for f in "$TMPDIR/.claude/runbooks/"*; do
+    fname="$(basename "$f")"
+    [[ "$fname" == ".gitkeep" ]] && continue
+    if [[ ! -f "$CLAUDE_DIR/runbooks/$fname" ]]; then
+      cp "$f" "$CLAUDE_DIR/runbooks/$fname"
+      echo "✓ .claude/runbooks/$fname 추가"
+    else
+      echo "  .claude/runbooks/$fname 이미 존재 — 건너뜀"
+    fi
+  done
+fi
+
+# integrations/ 병합
+if [[ -d "$TMPDIR/.claude/integrations" ]]; then
+  mkdir -p "$CLAUDE_DIR/integrations"
+  for f in "$TMPDIR/.claude/integrations/"*; do
+    fname="$(basename "$f")"
+    [[ "$fname" == ".gitkeep" ]] && continue
+    if [[ ! -f "$CLAUDE_DIR/integrations/$fname" ]]; then
+      cp "$f" "$CLAUDE_DIR/integrations/$fname"
+      echo "✓ .claude/integrations/$fname 추가"
+    else
+      echo "  .claude/integrations/$fname 이미 존재 — 건너뜀"
+    fi
+  done
+fi
+
 # hooks/ 덮어쓰기 (settings.json이 참조하므로 항상 최신 유지)
 if [[ -d "$TMPDIR/.claude/hooks" ]]; then
   mkdir -p "$CLAUDE_DIR/hooks"
@@ -165,6 +210,7 @@ if [[ "$GLOBAL_MODE" == true ]]; then
   echo ""
   echo "  ~/.claude/CLAUDE.md      — 글로벌 가이드"
   echo "  ~/.claude/STATE.md       — 현재 상태"
+  echo "  ~/.claude/TODO.md        — 오늘의 작업 (Jira 동기화)"
   echo "  ~/.claude/CONTEXT.md     — 컨텍스트"
   echo "  ~/.claude/settings.json  — 설정"
 else
@@ -172,5 +218,7 @@ else
   echo ""
   echo "  CLAUDE.md              — 세션 가이드"
   echo "  .claude/STATE.md       — 현재 상태 (수정 필요)"
+  echo "  .claude/TODO.md        — 오늘의 작업 (Jira 동기화)"
   echo "  .claude/CONTEXT.md     — 프로젝트 컨텍스트 (수정 필요)"
+  echo "  .claude/endpoints/     — 엔드포인트 관리"
 fi

@@ -39,6 +39,13 @@
 3. `[DEBT]` 태그 항목이 있으면 DECISIONS.md 이동 여부 확인
 4. `.claude/STATE.md` 갱신 (현재 상태 + 다음 작업)
 
+### Step 4.5: Jira 상태 전환
+1. TODO.md에서 완료된 항목의 Jira Key 추출
+2. `.claude/hooks/jira-lib.sh`의 `jira_transition`으로 "Done" 전환
+3. TODO.md에서 완료 항목 삭제 (완료 섹션 → 제거)
+4. roadmap.md에서 관련 Epic 진행률 갱신 (해당 시)
+5. Jira 토큰 미설정 시 건너뛰고 경고만 출력
+
 ### Step 5: 구현 계획 진행 상태 갱신
 1. `.omc/plans/aivalink-implementation-plan.md` 읽기
 2. 완료된 Phase/Step에 ✅ + 커밋 해시 마킹

@@ -7,8 +7,9 @@ description: "AI 세션 시작/종료 운영 정책"
 ## 세션 시작 절차
 1. `CLAUDE.md` 자동 로드 (Claude Code 기본 동작)
 2. `.claude/STATE.md` 읽고 현재 상태 파악
-3. 사용자 요청에 해당하는 `.claude/work/{category}.md` 로드
-4. 필요 시 `CONTEXT.md`, `DECISIONS.md` 참조
+3. `.claude/TODO.md` 읽고 오늘의 작업 확인
+4. 사용자 요청에 해당하는 `.claude/work/{category}.md` 로드
+5. 필요 시 `CONTEXT.md`, `DECISIONS.md`, `endpoints/` 참조
 
 ## 세션 종료 판단 흐름
 ```

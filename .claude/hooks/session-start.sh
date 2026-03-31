@@ -12,6 +12,22 @@ if [ -f "$STATE_FILE" ]; then
   PARTS="$(cat "$STATE_FILE")"
 fi
 
+# 1.5. TODO.md 읽기
+TODO_FILE="$CWD/.claude/TODO.md"
+if [ -f "$TODO_FILE" ]; then
+  PARTS="$PARTS
+$(cat "$TODO_FILE")"
+fi
+
+# 1.6. 아침 TODO 자동 동기화 힌트 (하루 1회)
+SYNC_MARKER="/tmp/claude-jira-sync-$(date +%Y%m%d)"
+if [ ! -f "$SYNC_MARKER" ] && [ -f "$CWD/.claude/hooks/jira-lib.sh" ]; then
+  touch "$SYNC_MARKER"
+  PARTS="$PARTS
+## Jira 동기화
+- TODO 자동 동기화 가능. \`/project:jira sync\` 실행 권장"
+fi
+
 # 2. git 상태 요약
 BRANCH=$(git -C "$CWD" branch --show-current 2>/dev/null)
 if [ -n "$BRANCH" ]; then

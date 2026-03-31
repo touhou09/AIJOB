@@ -73,6 +73,7 @@
       "Bash(ansible *)",
       "Bash(argocd *)",
       "Bash(yq *)",
+      "Bash(vault *)",
       "Bash(ov *)",
       "Bash(openviking *)",
       "Edit(*)",
