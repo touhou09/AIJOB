@@ -168,9 +168,10 @@ fi
 # runbooks/ 병합
 if [[ -d "$TMPDIR/.claude/runbooks" ]]; then
   mkdir -p "$CLAUDE_DIR/runbooks"
-  for f in "$TMPDIR/.claude/runbooks/"*; do
+  for f in "$TMPDIR/.claude/runbooks/"* "$TMPDIR/.claude/runbooks/".*; do
+    [[ ! -f "$f" ]] && continue
     fname="$(basename "$f")"
-    [[ "$fname" == ".gitkeep" ]] && continue
+    [[ "$fname" == "." || "$fname" == ".." || "$fname" == ".gitkeep" ]] && continue
     if [[ ! -f "$CLAUDE_DIR/runbooks/$fname" ]]; then
       cp "$f" "$CLAUDE_DIR/runbooks/$fname"
       echo "✓ .claude/runbooks/$fname 추가"
@@ -178,14 +179,16 @@ if [[ -d "$TMPDIR/.claude/runbooks" ]]; then
       echo "  .claude/runbooks/$fname 이미 존재 — 건너뜀"
     fi
   done
+  echo "✓ .claude/runbooks/ 디렉토리 생성"
 fi
 
 # integrations/ 병합
 if [[ -d "$TMPDIR/.claude/integrations" ]]; then
   mkdir -p "$CLAUDE_DIR/integrations"
-  for f in "$TMPDIR/.claude/integrations/"*; do
+  for f in "$TMPDIR/.claude/integrations/"* "$TMPDIR/.claude/integrations/".*; do
+    [[ ! -f "$f" ]] && continue
     fname="$(basename "$f")"
-    [[ "$fname" == ".gitkeep" ]] && continue
+    [[ "$fname" == "." || "$fname" == ".." || "$fname" == ".gitkeep" ]] && continue
     if [[ ! -f "$CLAUDE_DIR/integrations/$fname" ]]; then
       cp "$f" "$CLAUDE_DIR/integrations/$fname"
       echo "✓ .claude/integrations/$fname 추가"
@@ -193,6 +196,7 @@ if [[ -d "$TMPDIR/.claude/integrations" ]]; then
       echo "  .claude/integrations/$fname 이미 존재 — 건너뜀"
     fi
   done
+  echo "✓ .claude/integrations/ 디렉토리 생성"
 fi
 
 # hooks/ 덮어쓰기 (settings.json이 참조하므로 항상 최신 유지)
