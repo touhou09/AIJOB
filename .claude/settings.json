@@ -113,6 +113,11 @@
             "type": "command",
             "command": "bash .claude/hooks/stop-incremental-log.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/jira-done-sync.sh",
+            "timeout": 15
           }
         ]
       }

@@ -31,7 +31,7 @@ fi
 SYNC_MARKER="/tmp/claude-jira-sync-$(date +%Y%m%d)"
 SYNC_SCRIPT="$HOME/.claude/hooks/jira-sync.sh"
 if [ ! -f "$SYNC_MARKER" ] && [ -f "$SYNC_SCRIPT" ]; then
-  bash "$SYNC_SCRIPT" "$CWD" 2>/dev/null
+  bash "$SYNC_SCRIPT" "$CWD" 2>/dev/null && touch "$SYNC_MARKER"
 fi
 
 # 5. TODO.md
