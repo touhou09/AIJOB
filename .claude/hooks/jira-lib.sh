@@ -4,30 +4,57 @@
 
 JIRA_BASE_URL="${JIRA_BASE_URL:-https://ingkle.atlassian.net}"
 JIRA_USER="${JIRA_USER:-seungju.yu@ingkle.com}"
-JIRA_TOKEN_VAULT_PATH="secret/data/jira/api-token"
+
+# 토큰 읽기 우선순위: 파일 → 환경변수 → Vault
+_atlassian_token_file() {
+  local f
+  for f in "$HOME/.claude/.atlassian-token" ".claude/.atlassian-token"; do
+    if [ -f "$f" ]; then
+      cat "$f" 2>/dev/null | tr -d '\n'
+      return 0
+    fi
+  done
+  return 1
+}
 
 jira_get_token() {
+  local token
+  token=$(_atlassian_token_file) && [ -n "$token" ] && echo "$token" && return
+  [ -n "${JIRA_API_TOKEN:-}" ] && echo "$JIRA_API_TOKEN" && return
   if command -v vault &>/dev/null; then
-    vault kv get -field=token "$JIRA_TOKEN_VAULT_PATH" 2>/dev/null && return
+    vault kv get -field=token "secret/data/jira/api-token" 2>/dev/null && return
   fi
-  echo "${JIRA_API_TOKEN:-}"
+  return 1
+}
+
+jira_auth_header() {
+  local token
+  token=$(jira_get_token) || return 1
+  # macOS base64 vs Linux base64 -w0
+  if base64 --help 2>&1 | grep -q '\-w'; then
+    printf '%s:%s' "$JIRA_USER" "$token" | base64 -w0
+  else
+    printf '%s:%s' "$JIRA_USER" "$token" | base64
+  fi
 }
 
 jira_api() {
   local method="$1" endpoint="$2" data="${3:-}"
-  local token
-  token=$(jira_get_token)
-  if [ -z "$token" ]; then
-    echo "ERROR: Jira token not found (Vault: $JIRA_TOKEN_VAULT_PATH, env: JIRA_API_TOKEN)" >&2
-    return 1
-  fi
   local auth
-  auth=$(printf '%s:%s' "$JIRA_USER" "$token" | base64)
+  auth=$(jira_auth_header) || { echo "ERROR: Atlassian token not found" >&2; return 1; }
   curl -s -X "$method" \
     -H "Authorization: Basic $auth" \
     -H "Content-Type: application/json" \
     ${data:+-d "$data"} \
     "${JIRA_BASE_URL}/rest/api/3${endpoint}"
+}
+
+# Jira v3 search/jql (POST) — GET /search는 deprecated
+jira_get_my_issues() {
+  local jql="${1:-assignee=currentUser() AND status != Done ORDER BY priority DESC}"
+  local max="${2:-20}"
+  jira_api POST "/search/jql" \
+    "{\"jql\":\"$jql\",\"fields\":[\"key\",\"summary\",\"priority\",\"status\"],\"maxResults\":$max}"
 }
 
 jira_transition() {
@@ -42,11 +69,6 @@ jira_transition() {
     echo "ERROR: Transition '$transition_name' not found for $issue_key" >&2
     return 1
   fi
-}
-
-jira_get_my_issues() {
-  local status_filter="${1:-status != Done}"
-  jira_api GET "/search?jql=assignee=currentUser() AND ($status_filter) ORDER BY priority DESC&fields=key,summary,priority,status"
 }
 
 jira_change_assignee() {
