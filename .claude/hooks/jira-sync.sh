@@ -29,7 +29,7 @@ if [ -z "$TOKEN" ]; then
 fi
 
 # Jira에서 내 미완료 티켓 조회
-RESULT=$(jira_get_my_issues "assignee=currentUser() AND status != Done ORDER BY priority DESC" 50)
+RESULT=$(jira_get_my_issues "project = IW AND assignee=currentUser() AND status != Done ORDER BY priority DESC" 50)
 if echo "$RESULT" | jq -e '.errorMessages' &>/dev/null 2>&1; then
   echo "ERROR: Jira API 오류 — $(echo "$RESULT" | jq -r '.errorMessages[0]')" >&2
   exit 1
