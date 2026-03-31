@@ -1,7 +1,8 @@
 #!/bin/bash
-# TODO.md 완료 항목 → Jira Done 전환
+# TODO.md 완료 항목 → Jira 상태 전환
+# - 본인 생성 티켓: Done
+# - 외부 할당 티켓: Review (요청자가 확인 후 Done 처리)
 # 사용: bash .claude/hooks/jira-done-sync.sh [cwd]
-# /done hook 또는 단독 실행
 
 CWD="${1:-$HOME}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,12 +33,12 @@ SUCCESS=0
 FAIL=0
 
 for KEY in $DONE_KEYS; do
-  # 현재 Jira 상태 확인
-  CURRENT=$(jira_api GET "/issue/$KEY?fields=status" 2>/dev/null)
+  # 현재 상태 + reporter/assignee 조회
+  CURRENT=$(jira_api GET "/issue/$KEY?fields=status,reporter,assignee" 2>/dev/null)
   STATUS=$(echo "$CURRENT" | jq -r '.fields.status.name' 2>/dev/null)
 
-  if [ "$STATUS" = "Done" ]; then
-    echo "SKIP: $KEY (이미 Done)" >&2
+  if [ "$STATUS" = "Done" ] || [ "$STATUS" = "Review" ]; then
+    echo "SKIP: $KEY (이미 $STATUS)" >&2
     continue
   fi
 
@@ -47,13 +48,24 @@ for KEY in $DONE_KEYS; do
     continue
   fi
 
-  # Done 전환
-  RESULT=$(jira_transition "$KEY" "Done" 2>&1)
+  # reporter vs assignee accountId 비교
+  REPORTER_ID=$(echo "$CURRENT" | jq -r '.fields.reporter.accountId // ""' 2>/dev/null)
+  ASSIGNEE_ID=$(echo "$CURRENT" | jq -r '.fields.assignee.accountId // ""' 2>/dev/null)
+
+  if [ -n "$REPORTER_ID" ] && [ -n "$ASSIGNEE_ID" ] && [ "$REPORTER_ID" != "$ASSIGNEE_ID" ]; then
+    # 외부 할당 → Review
+    TARGET="Review"
+  else
+    # 본인 생성 → Done
+    TARGET="Done"
+  fi
+
+  RESULT=$(jira_transition "$KEY" "$TARGET" 2>&1)
   if [ $? -eq 0 ]; then
-    echo "✓ $KEY: $STATUS → Done" >&2
+    echo "✓ $KEY: $STATUS → $TARGET" >&2
     SUCCESS=$((SUCCESS + 1))
   else
-    echo "✗ $KEY: 전환 실패 ($RESULT)" >&2
+    echo "✗ $KEY: $TARGET 전환 실패 ($RESULT)" >&2
     FAIL=$((FAIL + 1))
   fi
 done
