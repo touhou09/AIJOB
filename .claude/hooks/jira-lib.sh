@@ -145,11 +145,102 @@ jira_create_subtask() {
   jira_api POST "/issue" "$payload"
 }
 
-# 코멘트 생성 — 구조화된 ADF (단계별 완료 내역)
+# --- 코멘트 함수 ---
+
+# 자유 코멘트 (단순 텍스트)
 jira_add_comment() {
   local issue_key="$1" text="$2"
-
   local payload="{\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"$text\"}]}]}}"
+  jira_api POST "/issue/$issue_key/comment" "$payload"
+}
 
+# ADF 헬퍼 — heading + bulletList 블록 생성
+_adf_section() {
+  local title="$1"; shift
+  local items=""
+  for item in "$@"; do
+    [ -n "$item" ] && items="${items}{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"$item\"}]}]},"
+  done
+  items=$(echo "$items" | sed 's/,$//')
+  echo "{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"text\":\"$title\"}]},{\"type\":\"bulletList\",\"content\":[$items]}"
+}
+
+# 완료 보고 코멘트 (작업 완료 + 트러블슈팅 + 리뷰 요청 통합)
+# items: | 구분자, decisions: | 구분자(선택), cause/solution: 선택, reviewer: 선택
+jira_comment_done_report() {
+  local issue_key="$1" items="$2" decisions="${3:-}" cause="${4:-}" solution="${5:-}" reviewer="${6:-}"
+
+  local blocks=""
+
+  # 작업 내용 (필수)
+  local item_list=""
+  echo "$items" | tr '|' '\n' | while read -r i; do
+    [ -n "$i" ] && printf '{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"%s"}]}]},' "$i"
+  done > /tmp/_jira_items.tmp
+  item_list=$(cat /tmp/_jira_items.tmp | sed 's/,$//')
+  blocks="{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"text\":\"작업 내용\"}]},{\"type\":\"bulletList\",\"content\":[$item_list]}"
+
+  # 의사결정 (선택)
+  if [ -n "$decisions" ]; then
+    local dec_list=""
+    echo "$decisions" | tr '|' '\n' | while read -r d; do
+      [ -n "$d" ] && printf '{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"%s"}]}]},' "$d"
+    done > /tmp/_jira_decs.tmp
+    dec_list=$(cat /tmp/_jira_decs.tmp | sed 's/,$//')
+    blocks="$blocks,{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"text\":\"의사결정\"}]},{\"type\":\"bulletList\",\"content\":[$dec_list]}"
+  fi
+
+  # 원인/해결 (트러블슈팅, 선택)
+  if [ -n "$cause" ]; then
+    local ts_items=""
+    ts_items="{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"원인: $cause\"}]}]}"
+    [ -n "$solution" ] && ts_items="$ts_items,{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"해결: $solution\"}]}]}"
+    blocks="$blocks,{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"text\":\"원인/해결\"}]},{\"type\":\"bulletList\",\"content\":[$ts_items]}"
+  fi
+
+  # 리뷰 요청 (선택)
+  if [ -n "$reviewer" ]; then
+    blocks="$blocks,{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"text\":\"리뷰 요청\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"@$reviewer 확인 부탁드립니다.\"}]}"
+  fi
+
+  local payload="{\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[$blocks]}}"
+  jira_api POST "/issue/$issue_key/comment" "$payload"
+  rm -f /tmp/_jira_items.tmp /tmp/_jira_decs.tmp
+}
+
+# 진행 내역 코멘트
+# done_items: | 구분자, remaining_items: | 구분자
+jira_comment_progress() {
+  local issue_key="$1" done_items="$2" remaining_items="${3:-}"
+
+  local blocks=""
+
+  # 완료 항목
+  local done_list=""
+  echo "$done_items" | tr '|' '\n' | while read -r i; do
+    [ -n "$i" ] && printf '{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"%s"}]}]},' "$i"
+  done > /tmp/_jira_done.tmp
+  done_list=$(cat /tmp/_jira_done.tmp | sed 's/,$//')
+  blocks="{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"text\":\"완료\"}]},{\"type\":\"bulletList\",\"content\":[$done_list]}"
+
+  # 남은 항목 (선택)
+  if [ -n "$remaining_items" ]; then
+    local rem_list=""
+    echo "$remaining_items" | tr '|' '\n' | while read -r r; do
+      [ -n "$r" ] && printf '{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"%s"}]}]},' "$r"
+    done > /tmp/_jira_rem.tmp
+    rem_list=$(cat /tmp/_jira_rem.tmp | sed 's/,$//')
+    blocks="$blocks,{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"text\":\"남은 작업\"}]},{\"type\":\"bulletList\",\"content\":[$rem_list]}"
+  fi
+
+  local payload="{\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[$blocks]}}"
+  jira_api POST "/issue/$issue_key/comment" "$payload"
+  rm -f /tmp/_jira_done.tmp /tmp/_jira_rem.tmp
+}
+
+# 피드백 코멘트 (@멘션 + 텍스트)
+jira_comment_feedback() {
+  local issue_key="$1" mention_name="$2" text="$3"
+  local payload="{\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"@$mention_name $text\"}]}]}}"
   jira_api POST "/issue/$issue_key/comment" "$payload"
 }
