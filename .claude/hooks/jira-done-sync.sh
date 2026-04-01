@@ -58,8 +58,9 @@ for KEY in $DONE_KEYS; do
     TARGET="Review"
     RESULT=$(jira_transition "$KEY" "$TARGET" 2>&1)
     if [ $? -eq 0 ]; then
-      # 담당자를 요청자(reporter)로 변경
       jira_change_assignee "$KEY" "$REPORTER_ID" >/dev/null 2>&1
+      # Actual end를 오늘로 갱신
+      jira_api PUT "/issue/$KEY" "{\"fields\":{\"customfield_10009\":\"$(date +%Y-%m-%d)\"}}" >/dev/null 2>&1
       echo "✓ $KEY: $STATUS → $TARGET (담당자 → $REPORTER_NAME)" >&2
       SUCCESS=$((SUCCESS + 1))
     else
@@ -71,6 +72,8 @@ for KEY in $DONE_KEYS; do
     TARGET="Done"
     RESULT=$(jira_transition "$KEY" "$TARGET" 2>&1)
     if [ $? -eq 0 ]; then
+      # Actual end를 오늘로 갱신
+      jira_api PUT "/issue/$KEY" "{\"fields\":{\"customfield_10009\":\"$(date +%Y-%m-%d)\"}}" >/dev/null 2>&1
       echo "✓ $KEY: $STATUS → $TARGET" >&2
       SUCCESS=$((SUCCESS + 1))
     else
