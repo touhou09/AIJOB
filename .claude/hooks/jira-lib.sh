@@ -118,12 +118,18 @@ jira_create_issue() {
   today=$(date +%Y-%m-%d)
 
   local priority="${8:-Medium}"
+  local duedate="${9:-}"
   local priority_id
   case "$priority" in
     Highest) priority_id="1" ;; High) priority_id="2" ;; Medium) priority_id="3" ;; Low) priority_id="4" ;; Lowest) priority_id="5" ;; *) priority_id="3" ;;
   esac
 
-  local payload="{\"fields\":{\"project\":{\"key\":\"$_IW_PROJECT_KEY\"},\"issuetype\":{\"id\":\"$type_id\"},\"summary\":\"$summary\",\"description\":$body,\"priority\":{\"id\":\"$priority_id\"},\"customfield_10008\":\"$today\",\"customfield_10009\":\"$today\"}}"
+  local due_field=""
+  if [ -n "$duedate" ]; then
+    due_field=",\"duedate\":\"$duedate\""
+  fi
+
+  local payload="{\"fields\":{\"project\":{\"key\":\"$_IW_PROJECT_KEY\"},\"issuetype\":{\"id\":\"$type_id\"},\"summary\":\"$summary\",\"description\":$body,\"priority\":{\"id\":\"$priority_id\"},\"customfield_10008\":\"$today\",\"customfield_10009\":\"$today\"$due_field}}"
 
   jira_api POST "/issue" "$payload"
 }
