@@ -46,10 +46,12 @@ curl -s -X POST -H "Authorization: Basic $AUTH" -H "Content-Type: application/js
 | `hooks/jira-sync.sh` | Jira → TODO.md 자동 동기화 |
 
 ## 프로젝트
-| 키 | 이름 | 용도 |
-|----|------|------|
-| IW | Infra Work | 인프라 업무 |
-| MICO | MICO | 제품 개발 |
+| 키 | 이름 | 용도 | 상태 |
+|----|------|------|------|
+| IW | Infra Work | 인프라 업무 | active (기본) |
+| MICO | MICO | 제품 개발 | 참조만 (조회 제외) |
+
+> Jira 조회/동기화는 IW 프로젝트만 대상으로 한다.
 
 ## 주의사항
 - 토큰을 코드/커밋/로그에 절대 기록 금지
