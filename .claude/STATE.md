@@ -16,7 +16,7 @@
 | Hermes Gateway | 실행 중 | launchd ai.hermes.gateway-backend |
 | Paperclip 2026.403.0 | 실행 중 | https://paperclip.dororong.dev |
 | Memvid MCP | 연결됨 | Hermes config에서 관리 |
-| LLM Wiki | 미초기화 | ~/wiki 경로 예정 |
+| LLM Wiki | 초기화 완료 | ~/wiki (SCHEMA+index+log) |
 | OpenClaw | 아카이브 | ~/.openclaw.pre-migration |
 
 ## Cron Jobs

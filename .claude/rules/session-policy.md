@@ -9,7 +9,7 @@ description: "AI 세션 시작/종료 운영 정책"
 2. `.claude/STATE.md` 읽고 현재 상태 파악
 3. `.claude/CONTEXT.md` 읽고 프로젝트 컨텍스트 파악
 4. `.claude/DECISIONS.md` 읽고 결정 이력 파악
-5. `.claude/TODO.md` 읽고 오늘의 작업 확인 (Jira Ready와 항상 일치)
+5. `.claude/TODO.md` 읽고 오늘의 작업 확인
 6. 사용자 요청에 해당하는 `.claude/work/{category}.md` 로드
 
 ## 문서 자동 갱신
@@ -67,7 +67,7 @@ AI는 **원인 기준**으로 분류한다.
 ### [auto] 태그
 
 AI가 자동 생성한 문서에는 `[auto]` 접두어를 붙인다.
-- work/, Jira 코멘트, endpoints/ 갱신 모두 해당
+- work/, Paperclip 코멘트, endpoints/ 갱신 모두 해당
 - 사람이 검증/수정 시 `[auto→manual]`로 전환
 - `[auto]` 태그 문서는 누구나 수정/삭제 가능 (별도 승인 불필요)
 
@@ -82,19 +82,19 @@ AI가 자동 생성한 문서에는 `[auto]` 접두어를 붙인다.
 - **작업 응답 끝에 붙이기**: 작업 결과를 사용자에게 보고하는 응답에서, 문서 갱신을 함께 수행한다.
 - **정리 트리거**: 120줄 초과 시 경고 + 정리 시작, 150줄 초과 시 강제 정리 (완료+유추가능 삭제, 결정→DECISIONS.md 이동)
 
-## Jira 코멘트 자동 갱신
+## Paperclip 이슈 자동 갱신
 
 ### 원칙: reporting moment당 1건 append
 
-작업 결과를 사용자에게 보고하는 시점에, 해당 Jira 티켓에 코멘트 1건을 자동 append한다.
+작업 결과를 사용자에게 보고하는 시점에, 해당 Paperclip 이슈에 코멘트 1건을 자동 append한다.
 
 - 중간 단계는 코멘트 안 남김. 보고 시점까지의 진행을 하나로 병합.
 - description은 수정 금지 (코멘트는 append-only라 안전).
 - 코멘트에 `[auto]` 접두어 포함.
 
-### Confluence KB 연동
+### LLM Wiki 연동
 
-자동 publish 안 함. doc:reference 라벨 티켓 완료 시 **Confluence 페이지 링크를 Jira 코멘트에 첨부**하는 수준만.
+유의미한 작업 결과는 LLM Wiki에 ingest. 자동 publish가 아닌, 가치 판단 후 수동 ingest.
 
 ## 크로스팀 변경 감지
 
@@ -113,7 +113,7 @@ AI가 자동 생성한 문서에는 `[auto]` 접두어를 붙인다.
 ### 감지 시 동작
 
 1. **endpoints/ 해당 파일 갱신** (messaging.md, storage.md, apis.md 등)
-2. **Jira 코멘트에 `[BREAKING]` 플래그** + 영향받는 컴포넌트/페이지 태깅
+2. **Paperclip 이슈에 `[BREAKING]` 플래그** + 영향받는 컴포넌트 태깅
 3. 영향 범위 분석은 **참고용 목록 제공, 최종 판단은 사람** (정적 grep 수준, 런타임 동적 호출 한계)
 
 ### endpoints/ 구조
