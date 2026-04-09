@@ -46,3 +46,6 @@ npm-debug.log*
 
 # Atlassian token (로컬 전용)
 .claude/.atlassian-token
+
+# OpenClaw 잔재
+.omc/

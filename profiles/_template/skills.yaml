@@ -1,0 +1,10 @@
+# 기본 스킬 목록 — 프로필 생성 후 커스터마이즈
+enabled:
+  - llm-wiki
+  - obsidian
+  - github-pr-workflow
+  - github-code-review
+  - systematic-debugging
+  - plan
+
+disabled: []

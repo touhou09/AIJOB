@@ -1,6 +1,12 @@
+---
+name: done
+description: 기능 단위 작업 완료 문서화. 코드 변경 분석 → work/ 기록 → STATE.md 갱신을 일괄 수행한다.
+disable-model-invocation: true
+---
+
 # 기능 단위 작업 완료 문서화
 
-작업이 완료되면 이 커맨드를 실행하여 자동으로 문서화한다.
+작업이 완료되면 이 스킬을 실행하여 자동으로 문서화한다.
 
 ## 절차
 
@@ -35,34 +41,26 @@
 
 ### Step 4: 정리 및 갱신
 1. 해당 work/ 파일의 줄 수 확인
-2. 150줄 초과 시 `/project:cleanup` 실행 제안
+2. 150줄 초과 시 `/cleanup` 실행 제안
 3. `[DEBT]` 태그 항목이 있으면 DECISIONS.md 이동 여부 확인
 4. `.claude/STATE.md` 갱신 (현재 상태 + 다음 작업)
 
-### Step 4.5: Jira 상태 전환
-1. TODO.md에서 완료된 항목의 Jira Key 추출
-2. `.claude/hooks/jira-lib.sh`의 `jira_transition`으로 "Done" 전환
-3. TODO.md에서 완료 항목 삭제 (완료 섹션 → 제거)
-4. roadmap.md에서 관련 Epic 진행률 갱신 (해당 시)
-5. Jira 토큰 미설정 시 건너뛰고 경고만 출력
-
-### Step 5: 구현 계획 진행 상태 갱신
-1. `.omc/plans/aivalink-implementation-plan.md` 읽기
-2. 완료된 Phase/Step에 ✅ + 커밋 해시 마킹
-3. 병렬 구조 다이어그램 갱신 (✅ / 미착수 표시)
-4. Phase 상태 레이블 갱신 ([미착수] → [진행 중] → [완료])
+### Step 5: Hermes 상태 동기화 (해당 시)
+1. 작업이 Hermes 인프라(프로필/게이트웨이/cron)와 관련된 경우:
+   - STATE.md의 인프라 상태 테이블 갱신
+   - integrations/hermes.md 갱신 필요 여부 확인
+2. Paperclip 이슈가 관련된 경우:
+   - 이슈 상태를 done으로 업데이트
 
 ### Step 6: 컨텍스트 문서 동기화
 1. `.claude/CONTEXT.md` — 새 모듈/디렉토리가 추가되었으면 디렉토리 구조 갱신
 2. `.claude/DECISIONS.md` — [DEBT] 항목이 있으면 AD 번호 부여하여 이동
-3. gstack 디자인 문서 (`~/.gstack/projects/`) — 존재하면 Status 갱신
 
 ### Step 7: 결과 출력
 기록 완료 후 요약 출력:
 - 기록 위치: `work/{category}.md`
 - 현재 줄 수 / 200줄 한도
 - STATE.md 갱신 여부
-- 구현 계획 갱신 여부
 - CONTEXT.md / DECISIONS.md 갱신 여부
 
-사용법: `/project:done`
+사용법: `/done`

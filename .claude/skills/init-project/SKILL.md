@@ -1,3 +1,9 @@
+---
+name: init-project
+description: 새 프로젝트에 Claude Code 환경 세팅. init-mac.sh/init-linux.sh 실행 후 CLAUDE.md, CONTEXT.md, STATE.md를 프로젝트에 맞게 커스터마이즈한다.
+disable-model-invocation: true
+---
+
 # 새 프로젝트에 Claude Code 환경 세팅
 
 1. 대상 프로젝트 경로와 브랜치를 확인한다
@@ -7,4 +13,4 @@
 5. STATE.md에 초기 상태를 기록한다
 6. 필요한 work/ 카테고리 파일을 생성한다
 
-사용법: `/project:init-project`
+사용법: `/init-project`
