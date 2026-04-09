@@ -4,6 +4,7 @@
 
 JIRA_BASE_URL="${JIRA_BASE_URL:-https://ingkle.atlassian.net}"
 JIRA_USER="${JIRA_USER:?JIRA_USER 환경변수를 설정하세요 (예: user@ingkle.com)}"
+JIRA_DEFAULT_ASSIGNEE="${JIRA_DEFAULT_ASSIGNEE:-712020:3f01f9f9-7b91-4309-951f-b3e812483fb5}"
 
 # 토큰 읽기 우선순위: 파일 → 환경변수 → Vault
 _atlassian_token_file() {
@@ -99,6 +100,8 @@ ENDADF
 }
 
 # 티켓 생성 — Task/Story/Bug
+# 인자: type summary background scope_include scope_exclude done_criteria [reference] [priority] [duedate] [epic_key] [labels]
+# labels: 쉼표 구분 (예: "doc:runbook,site:ingkle-prod")
 jira_create_issue() {
   local issue_type="$1" summary="$2" background="$3" scope_include="$4" scope_exclude="$5" done_criteria="$6" reference="${7:-}"
 
@@ -119,6 +122,8 @@ jira_create_issue() {
 
   local priority="${8:-Medium}"
   local duedate="${9:-}"
+  local epic_key="${10:-}"
+  local labels="${11:-}"
   local priority_id
   case "$priority" in
     Highest) priority_id="1" ;; High) priority_id="2" ;; Medium) priority_id="3" ;; Low) priority_id="4" ;; Lowest) priority_id="5" ;; *) priority_id="3" ;;
@@ -129,7 +134,21 @@ jira_create_issue() {
     due_field=",\"duedate\":\"$duedate\""
   fi
 
-  local payload="{\"fields\":{\"project\":{\"key\":\"$_IW_PROJECT_KEY\"},\"issuetype\":{\"id\":\"$type_id\"},\"summary\":\"$summary\",\"description\":$body,\"priority\":{\"id\":\"$priority_id\"},\"customfield_10008\":\"$today\",\"customfield_10009\":\"$today\"$due_field}}"
+  # 에픽 링크 (Jira Cloud: customfield_10014 = Epic Link)
+  local epic_field=""
+  if [ -n "$epic_key" ]; then
+    epic_field=",\"customfield_10014\":\"$epic_key\""
+  fi
+
+  # 라벨 (쉼표 구분 → JSON 배열)
+  local labels_field=""
+  if [ -n "$labels" ]; then
+    local labels_json
+    labels_json=$(echo "$labels" | tr ',' '\n' | sed 's/^/"/;s/$/"/' | paste -sd, -)
+    labels_field=",\"labels\":[$labels_json]"
+  fi
+
+  local payload="{\"fields\":{\"project\":{\"key\":\"$_IW_PROJECT_KEY\"},\"issuetype\":{\"id\":\"$type_id\"},\"summary\":\"$summary\",\"description\":$body,\"priority\":{\"id\":\"$priority_id\"},\"assignee\":{\"accountId\":\"$JIRA_DEFAULT_ASSIGNEE\"},\"customfield_10008\":\"$today\",\"customfield_10009\":\"$today\"$due_field$epic_field$labels_field}}"
 
   jira_api POST "/issue" "$payload"
 }
@@ -141,12 +160,37 @@ jira_find_user() {
 }
 
 # Sub-task 생성
+# 인자: parent_key summary [background] [done_criteria] [priority] [labels]
+# background/done_criteria가 있으면 description 포함, 없으면 summary만
 jira_create_subtask() {
-  local parent_key="$1" summary="$2"
+  local parent_key="$1" summary="$2" background="${3:-}" done_criteria="${4:-}" priority="${5:-Medium}" labels="${6:-}"
   local today
   today=$(date +%Y-%m-%d)
 
-  local payload="{\"fields\":{\"project\":{\"key\":\"$_IW_PROJECT_KEY\"},\"issuetype\":{\"id\":\"$_IW_ISSUETYPE_SUBTASK\"},\"parent\":{\"key\":\"$parent_key\"},\"summary\":\"$summary\",\"customfield_10008\":\"$today\",\"customfield_10009\":\"$today\"}}"
+  local priority_id
+  case "$priority" in
+    Highest) priority_id="1" ;; High) priority_id="2" ;; Medium) priority_id="3" ;; Low) priority_id="4" ;; Lowest) priority_id="5" ;; *) priority_id="3" ;;
+  esac
+
+  local desc_field=""
+  if [ -n "$background" ]; then
+    local done_block=""
+    if [ -n "$done_criteria" ]; then
+      local done_items=""
+      done_items=$(echo "$done_criteria" | tr '|' '\n' | while read -r item; do [ -n "$item" ] && printf '{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"%s"}]}]},' "$item"; done | sed 's/,$//')
+      done_block=",{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"text\":\"완료 조건\"}]},{\"type\":\"bulletList\",\"content\":[$done_items]}"
+    fi
+    desc_field=",\"description\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"text\":\"배경\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"$background\"}]}${done_block}]}"
+  fi
+
+  local labels_field=""
+  if [ -n "$labels" ]; then
+    local labels_json
+    labels_json=$(echo "$labels" | tr ',' '\n' | sed 's/^/"/;s/$/"/' | paste -sd, -)
+    labels_field=",\"labels\":[$labels_json]"
+  fi
+
+  local payload="{\"fields\":{\"project\":{\"key\":\"$_IW_PROJECT_KEY\"},\"issuetype\":{\"id\":\"$_IW_ISSUETYPE_SUBTASK\"},\"parent\":{\"key\":\"$parent_key\"},\"summary\":\"$summary\",\"priority\":{\"id\":\"$priority_id\"},\"assignee\":{\"accountId\":\"$JIRA_DEFAULT_ASSIGNEE\"},\"customfield_10008\":\"$today\",\"customfield_10009\":\"$today\"${desc_field}${labels_field}}}"
 
   jira_api POST "/issue" "$payload"
 }
