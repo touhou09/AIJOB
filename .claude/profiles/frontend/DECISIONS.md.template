@@ -1,0 +1,7 @@
+# frontend Architecture Decisions
+
+> frontend 레벨의 설계/운영 결정 이력. AD 번호로 관리.
+
+---
+
+> 새 결정 사항은 AD 번호를 부여해서 append. 오래된 것 삭제 금지.

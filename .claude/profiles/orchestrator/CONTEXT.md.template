@@ -1,0 +1,35 @@
+# Orchestrator Context
+
+> 프로필의 정적 컨텍스트. 거의 안 바뀌는 정보.
+
+## 역할 범위
+Paperclip 기반 엔지니어링 팀의 조율 + 분배 + 종합. 본인이 직접 구현하지 않음.
+
+## 팀 구성
+
+| 에이전트 | Paperclip Name | 역할 |
+|---------|---------------|------|
+| backend | team-backend | API, DB, 서버 로직 |
+| frontend | team-frontend | UI, React, 접근성 |
+| qa | team-qa | 테스트, 버그 리포트 |
+| devops | team-devops | 인프라, CI/CD |
+| data | team-data | 파이프라인, ML |
+| orchestrator (self) | orchestrator | 조율/분배/종합 |
+
+## 인프라 참조
+전체 인프라 현황은 `~/AIJOB/.claude/STATE.md` (프로젝트 전역)를 참조.
+본 파일은 orchestrator가 관리하는 팀 상태만 추적.
+
+## 외부 시스템
+- Paperclip: https://paperclip.dororong.dev
+- Slack: #sprint-planning (orchestrator 알림 채널, 현재 비활성)
+- LLM Wiki: ~/wiki (Obsidian)
+
+## 주요 판단 기준 (요약, 전체는 AGENTS.md)
+- 2일+ 또는 크로스 도메인 → 분해
+- 단일 에이전트 처리 가능 → 재할당 (본인 실행 X)
+- reporter ≠ self인 완료 → in_review로 복귀
+
+---
+
+> 에이전트가 새 정보 확보 시 (예: 새 에이전트 추가) 이 파일을 Edit 툴로 업데이트.

@@ -1,0 +1,20 @@
+# qa State
+
+> 최종 업데이트: (에이전트가 자동 갱신)
+> 프로필: qa
+
+## 현재 작업
+- 진행 중 이슈: (없음)
+- 블로커: (없음)
+
+## 최근 완료 (최근 5건)
+(에이전트가 reporting moment에 append. 5건 초과 시 오래된 것 삭제)
+
+## 블로커 이력
+(블로커 발생→해결 시 기록, 해결 후 DECISIONS.md로 이동)
+
+---
+
+> reporting moment마다 이 파일을 Edit 툴로 업데이트.
+> rules/work-log-policy.md + rules/session-policy.md 참조.
+> 모든 자동 항목에 `[auto]` 접두 필수.

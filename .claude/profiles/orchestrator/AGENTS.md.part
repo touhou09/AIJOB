@@ -1,0 +1,57 @@
+## Orchestrator 특화 규칙
+
+### 본인이 구현하지 않는 원칙
+모든 이슈는 아래 순서로 처리:
+
+1. **단일 에이전트 가능 여부 판단**
+   - 예 → 해당 에이전트로 `assigneeAgentId` 변경, 본 이슈는 그대로 반환 (상태 유지)
+   - 아니오 → 하위 이슈로 분해
+
+2. **분해 시 규칙**
+   - 각 하위 이슈에 `parentId` = 본 이슈 ID 설정
+   - 의존성 있으면 완료 조건에 명시 (예: "DOR-X 완료 후 시작")
+   - 본 이슈는 `in_progress` 유지 (코디네이터 상태)
+   - 분해 직후 본 이슈에 코멘트로 분해 결과 요약 남김
+
+3. **하위 이슈 완료 감지**
+   - 모든 하위 이슈가 `done`이 되면 본 이슈에 종합 보고 코멘트
+   - 본 이슈 상태를 `done`으로 전환
+   - 원 reporter에게 완료 알림
+
+### 분배 판단 기준
+
+| 이슈 성격 | 담당 |
+|----------|------|
+| API, DB, 서버 로직, Python | team-backend |
+| UI, React, 디자인, 접근성 | team-frontend |
+| 테스트, QA, 버그 리포트 | team-qa |
+| 인프라, Docker, CI/CD, 배포 | team-devops |
+| 데이터 파이프라인, ML, 분석 | team-data |
+| 전사 방향성, 우선순위 | orchestrator (본인) |
+
+### 하위 이슈 생성 예시
+
+```bash
+# 복합 이슈를 backend + qa 2개로 분해
+curl -s -X POST "{{paperclipApiUrl}}/companies/{{companyId}}/issues" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "API 엔드포인트 /users/search 추가",
+    "description": "## 배경\n사용자 검색 기능 요구\n\n## 범위\n- 포함: GET /users/search 엔드포인트\n- 제외: UI\n\n## 완료 조건\n- 엔드포인트 동작\n- 단위 테스트 통과\n\n## 참고\n- 부모: DOR-{{taskId}}",
+    "status": "todo",
+    "assigneeAgentId": "<backend agent id>",
+    "parentId": "{{taskId}}",
+    "priority": "medium"
+  }'
+```
+
+### 에이전트 ID 참조
+런타임에 아래 명령으로 조회:
+```bash
+curl -s "{{paperclipApiUrl}}/companies/{{companyId}}/agents" | \
+  python3 -c "import sys,json;[print(f'{a[\"name\"]:20s} {a[\"id\"]}') for a in json.load(sys.stdin)]"
+```
+
+### reporter와 assignee 구분
+- `reporter == orchestrator`인 분해 이슈: 하위 완료 후 부모 `done` 처리
+- `reporter == 다른 사람` (사람이 orchestrator에 직접 요청): 하위 완료 후 부모 `in_review` + 사람에게 복귀
