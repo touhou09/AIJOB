@@ -108,9 +108,12 @@ sync_profile() {
     fi
   done
 
-  # 5. workspace 디렉토리 보장
+  # 5. workspace 디렉토리 보장 + AGENTS.md symlink
+  # Hermes의 _load_agents_md는 cwd 자체에만 있는 AGENTS.md를 로드함 (parent walk 안 함).
+  # cwd가 workspace/이므로 workspace/AGENTS.md가 ../AGENTS.md를 가리키도록 symlink.
   mkdir -p "$dst/workspace"
-  echo "[sync]   workspace/ ensured"
+  ln -sf ../AGENTS.md "$dst/workspace/AGENTS.md"
+  echo "[sync]   workspace/ + AGENTS.md symlink ensured"
 }
 
 FAIL_COUNT=0

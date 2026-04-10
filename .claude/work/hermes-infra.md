@@ -35,6 +35,15 @@
 - **Trap**: Paperclip heartbeat 에러 로그(ECONNREFUSED:54329)가 오래된 기록이라 현재 문제 착각 → 최신 heartbeat-runs API로 확인 후 교차 검증 / Mac Mini 내부 curl은 200인데 외부 브라우저는 404 → Cloudflare 엣지 라우팅이 두 커넥터 중 다른 쪽으로 분산된 것. root 커넥터 재시작으로 해결
 ---
 
+## 2026-04-10: AGENTS.md 자동 로드 버그 수정 — workspace symlink [done]
+- **What**: `hermes-profile-sync.sh`에 `workspace/AGENTS.md -> ../AGENTS.md` symlink 생성 단계 추가. DOR-5 롤백 E2E 성공 (orchestrator가 본인 구현 없이 3개 하위 이슈로 분해: devops/backend/qa)
+- **Why**: Hermes `_load_agents_md()`가 cwd 자체에만 있는 AGENTS.md를 로드(parent walk 안 함, 문서와 구현 다름). cwd가 `workspace/`인데 AGENTS.md는 한 단계 위에 있어서 자동 로드 실패. 결과적으로 orchestrator가 SOUL/AGENTS 원칙 무시하고 이전 세션 맥락(session resume)으로 이미 완료된 작업을 다시 done 처리
+- **Impact**: 6개 프로필 전부 AGENTS.md 자동 로드 정상화. orchestrator 자율 분해/분배 워크플로우 검증 완료 (DOR-5 → DOR-13/14/15)
+- **Test**: DOR-12 진단 이슈로 cwd 확인 + AGENTS.md 로드 여부 확인 → "no agents.md block in system prompt" 확인. symlink 추가 후 DOR-5 rollback → orchestrator가 3개 하위 이슈 생성 + 분배 코멘트 남김 + in_progress 유지 (코디네이터 상태)
+- **Trap**: (1) cwd가 올바르지만 AGENTS.md가 cwd/ 하위가 아니라 cwd/.. 에 있어서 Hermes `_load_agents_md`(`top-level only, no recursive walk`)가 못 찾음. Hermes 문서에는 "parent walk up to 5 levels"라고 적혀있지만 구현과 다름. (2) `persistSession=true` 상태라 session resume으로 이전 완료 맥락 유지, 롤백 지시 코멘트를 "이미 해결된 것"으로 해석. `persistSession=false` 전환으로 해결. 운영 적용 시 재검토 필요
+
+---
+
 ## 2026-04-10: Agent Harness 구조 구축 (AGENTS.md + rules/ + STATE sync) [done]
 - **What**: AIJOB을 Hermes 프로필 템플릿 레포로 재구성. `.claude/profiles/{_common,orchestrator,backend,frontend,qa,devops,data}/` 구조로 SOUL + AGENTS.md.part + STATE/CONTEXT/DECISIONS 템플릿 정립. `hooks/hermes-profile-sync.sh`로 `AIJOB → ~/.hermes/profiles/{p}/` 단방향 배포. 각 프로필에 `rules/*.md` 9종 복제. `{profile}` placeholder 치환으로 프로필별 경로 자동 삽입. 6개 Paperclip 에이전트에 `adapterConfig.cwd` 추가
 - **Why**: 회사 Claude Code의 `CLAUDE.md + rules/ + STATE/CONTEXT/DECISIONS` 컨텍스트 로딩 패턴을 codex 기반 Hermes 에이전트에 이식. 2026년 agent harness 업계 표준(OpenHarness, everything-claude-code, AGENTS.md 오픈 표준)과 일치. Hermes는 cwd의 AGENTS.md 하나만 자동 로드하므로 rules/*.md는 AGENTS.md의 "cat 지시"로 runtime 로드. STATE.md는 동적 파일이라 merge 대신 cat 방식 선택
