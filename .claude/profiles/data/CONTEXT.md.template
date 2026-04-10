@@ -1,21 +1,65 @@
-# data Context
+# Data Context
 
-> 프로필의 정적 컨텍스트.
+> data 프로필의 정적 컨텍스트.
 
 ## 역할 범위
-(AGENTS.md.part의 "담당 영역" 참조)
+데이터 파이프라인 설계/구축, 데이터 품질 검증, 분석 인프라, MLOps. 전체 운영 정책은 `AGENTS.md` 참조.
 
-## 주로 다루는 저장소/시스템
-- TBD
+## 기술 스택
 
-## 외부 시스템
+| 계층 | 도구 |
+|------|------|
+| 프로세싱 (primary) | Polars (Python / Rust) |
+| 포맷 | Apache Arrow (Rust + Python), Parquet |
+| Lakehouse | Delta Lake (ACID, time travel, 스키마 진화) |
+| OLAP | ClickHouse (집계/분석 쿼리) |
+| OLTP 참조 | PostgreSQL (원본 데이터 소스) |
+| 파이프라인 오케스트레이션 | n8n (워크플로우), Airflow/Prefect (복잡한 DAG) |
+| 메시징 | Kafka (스트리밍), MQTT (IoT 수집) |
+| ML 프레임워크 | PyTorch, scikit-learn, HuggingFace Transformers |
+| MLOps | MLflow (실험 추적), Weights & Biases (선택) |
+| 데이터 품질 | Great Expectations 스타일 검증 (또는 Polars 자체 assertion) |
+| 노트북 | Jupyter, marimo |
+
+## 품질 기준
+- **멱등성 우선** — 파이프라인은 반복 실행 안전해야 함 (같은 입력 → 같은 출력)
+- **데이터 리니지 추적** — 소스 → 변환 → 타겟 매핑 기록
+- **데이터 품질 검증 필수** — row count, null ratio, distinct count, schema conformance
+- **롤백 전략** — Delta Lake time travel 또는 백업 파티션 유지
+- **스키마 변경은 BREAKING 판단** — `rules/session-policy.md`의 크로스팀 변경 감지 규칙 준수
+
+## 스키마 / 인터페이스 변경 정책
+- Breaking: 필드 삭제/rename, 타입 변경, 파티셔닝 변경
+- Not Breaking: 필드 추가 (기존 유지)
+- Breaking 시 `.claude/endpoints/storage.md` 갱신 + Paperclip 이슈에 `[BREAKING]` 플래그 + 영향 consumer 태깅
+
+## 개인정보 보호
+- PII 취급 시 마스킹/암호화 적용
+- 분석 결과물에 raw PII 노출 금지
+- 접근 로그 남기기
+
+## 주로 다루는 저장소 / 시스템
+(실제 담당 저장소 확인되는 대로 에이전트가 갱신)
+
+## 메모리 / 지식 시스템
+- **Hermes native memory**: `~/.hermes/profiles/data/memories/` (자동 유지, 크로스세션)
+- **Memvid MCP**: `memvid-mcp-server` — 시맨틱 검색 (Hermes `mcp_servers.memvid`, stdio)
+- **LLM Wiki**: `~/wiki` (Obsidian vault) — 도메인 지식, 관련 스킬 `~/.hermes/skills/research/llm-wiki/SKILL.md`
+
+## 외부 시스템 참조
 - Paperclip: https://paperclip.dororong.dev
 - Slack: #team-data (현재 비활성)
-- LLM Wiki: ~/wiki
 
-## 전사 인프라
-전체 인프라 현황은 `~/AIJOB/.claude/STATE.md` 참조.
+## 관련 전역 참조
+- `~/.claude/CLAUDE.md` — 전역 Preferred Tools (Polars / Delta Lake / Apache Arrow, Rust + Python)
+- `~/AIJOB/.claude/STATE.md` — 전체 인프라 현황
+- `~/AIJOB/.claude/rules/no-delete-policy.md` — 데이터 삭제/마이그레이션 5단계 절차
+
+## 성능 원칙
+- Polars lazy API 우선 (eager는 디버깅용)
+- 큰 데이터셋은 streaming 처리
+- Parquet 쓰기 시 적절한 파티셔닝 (시간 기반 권장)
 
 ---
 
-> 역할/범위 변경 시 에이전트가 이 파일을 Edit 툴로 업데이트.
+> 역할/스택 변경 시 에이전트가 이 파일을 Edit 툴로 업데이트.

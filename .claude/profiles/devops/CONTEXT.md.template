@@ -1,21 +1,61 @@
-# devops Context
+# DevOps Context
 
-> 프로필의 정적 컨텍스트.
+> devops 프로필의 정적 컨텍스트.
 
 ## 역할 범위
-(AGENTS.md.part의 "담당 영역" 참조)
+인프라 프로비저닝, CI/CD, 배포, 모니터링, 보안, 장애 대응. 전체 운영 정책은 `AGENTS.md` 참조.
 
-## 주로 다루는 저장소/시스템
-- TBD
+## 기술 스택
 
-## 외부 시스템
+| 계층 | 도구 |
+|------|------|
+| 컨테이너 | Docker, Colima (로컬 Mac) |
+| 오케스트레이션 | Kubernetes (운영), Helm (패키징) |
+| IaC | Terraform (primary), Ansible (구성 관리), Pulumi (TS 프로젝트) |
+| Cloud | AWS (CDK 또는 Terraform), GCP (gcloud + Terraform) |
+| CI/CD | GitHub Actions (primary), ArgoCD (GitOps 배포) |
+| 모니터링 | Prometheus + Grafana, Loki (로그), Tempo (trace) |
+| 알림 | Slack webhook, PagerDuty |
+| 시크릿 | HashiCorp Vault (primary), AWS Secrets Manager, GCP Secret Manager |
+| 터널 / 프록시 | Cloudflare Tunnel (개인 환경), nginx / Envoy |
+| 런타임 (현재 홈 랩) | Mac Mini M4 32GB, macOS, launchd |
+
+## 품질 기준
+- **Infrastructure as Code** — 수동 변경 금지. 모든 변경은 코드 → git → 적용.
+- **최소 권한** — 신규 IAM 역할/네트워크 규칙은 기본 deny
+- **롤백 계획 필수** — 변경 전 백업/스냅샷 확인, 롤백 절차 문서화
+- **모니터링 포함** — 신규 서비스는 메트릭 + 알림 동시 설계
+- **Secrets 절대 노출 금지** — Vault 경로 또는 env 변수명만 기록, 실제 값 금지
+
+## no-delete 정책 엄수
+`rules/no-delete-policy.md`의 운영 환경 절대 금지 명령어 목록 준수.
+조건부 허용도 5단계 절차(환경 확인 → 영향 범위 → 백업 확인 → 사용자 승인 → 트랜잭션) 필수.
+
+## 주로 다루는 저장소 / 시스템
+- AIJOB (Hermes/Paperclip 템플릿)
+- (devops 레포는 참조만 허용, 복사 금지 — AIJOB/CLAUDE.md 규정)
+- 실제 담당 범위는 확인되는 대로 에이전트가 갱신
+
+## 메모리 / 지식 시스템
+- **Hermes native memory**: `~/.hermes/profiles/devops/memories/` (자동 유지, 크로스세션)
+- **Memvid MCP**: `memvid-mcp-server` — 시맨틱 검색 (Hermes `mcp_servers.memvid`, stdio)
+- **LLM Wiki**: `~/wiki` (Obsidian vault) — 도메인 지식, 관련 스킬 `~/.hermes/skills/research/llm-wiki/SKILL.md`
+
+## 외부 시스템 참조
 - Paperclip: https://paperclip.dororong.dev
 - Slack: #team-devops (현재 비활성)
-- LLM Wiki: ~/wiki
 
-## 전사 인프라
-전체 인프라 현황은 `~/AIJOB/.claude/STATE.md` 참조.
+## 관련 전역 참조
+- `~/.claude/CLAUDE.md` — 전역 Preferred Tools (Docker / K8s / Terraform / AWS CDK)
+- `~/AIJOB/.claude/STATE.md` — 전체 인프라 현황 (Cloudflare Tunnel 라우팅, launchd 서비스)
+- `~/AIJOB/.claude/rules/no-delete-policy.md`
+- `~/AIJOB/.claude/rules/endpoint-policy.md` — 엔드포인트 변경 시 `.claude/endpoints/` 갱신 규칙
+
+## 장애 대응 원칙
+- 증상 → 원인 → 해결 3단 구조로 `work/troubleshooting.md`에 기록
+- 운영 장애는 우선 복구 + 복구 후 root cause 분석
+- `[BREAKING]` 판단 기준은 `rules/session-policy.md` 참조
 
 ---
 
-> 역할/범위 변경 시 에이전트가 이 파일을 Edit 툴로 업데이트.
+> 역할/스택 변경 시 에이전트가 이 파일을 Edit 툴로 업데이트.
