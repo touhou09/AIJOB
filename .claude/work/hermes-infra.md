@@ -27,6 +27,13 @@
 - **Next**: launchd plist와 Slack webhook 시크릿 주입을 운영 환경에 연결해야 주기 알림이 자동화됨
 ---
 
+## 2026-04-10: Hermes 모니터 launchd 배포 경로 고정 [done]
+- **What**: `ai.hermes.monitor.plist.example`를 추가하고 수집 스냅샷에 Slack 알림 배달 결과를 함께 저장하도록 `scripts/hermes_monitor.py`와 운영 런북/아키텍처 문서를 정리
+- **Why**: 기존 초안은 주기 실행용 launchd 정의가 저장소에 없고 `--notify --write-snapshot` 조합에서 마지막 Slack 배달 상태가 스냅샷에 남지 않아 운영 검증이 어려웠음
+- **Impact**: Mac launchd 기준 5분 주기 수집/알림 배포 경로가 IaC로 고정되고 `/hermes-status` 또는 운영자가 JSON 하나로 수집 결과와 배달 상태를 함께 확인 가능
+- **Test**: `python3 -m py_compile scripts/hermes_monitor.py`; `python3 scripts/hermes_monitor.py --notify --write-snapshot .claude/tmp/hermes-monitor/latest.json` 실행 후 `notification.message=skipped`와 alert 목록 persisted 확인
+---
+
 ## 2026-04-10: Paperclip 외부 접속 복구 + 5개 게이트웨이 복원 [done]
 - **What**: cloudflared 중복 커넥터 정리(root/user 2개 → root 1개), 5개 프로필에서 Slack 토큰 제거하여 게이트웨이 startup 충돌 해소
 - **Why**: paperclip.dororong.dev 외부 접속이 404. 원인 추적: (a) 3/28부터 재시작 안 된 root cloudflared 커넥터가 오래된 라우팅 유지 (b) 5개 게이트웨이가 동일 Slack 토큰 공유로 Socket Mode 충돌 → startup non-retryable exit → heartbeat 주체인 게이트웨이 부재
@@ -41,6 +48,22 @@
 - **Impact**: 6개 프로필 전부 AGENTS.md 자동 로드 정상화. orchestrator 자율 분해/분배 워크플로우 검증 완료 (DOR-5 → DOR-13/14/15)
 - **Test**: DOR-12 진단 이슈로 cwd 확인 + AGENTS.md 로드 여부 확인 → "no agents.md block in system prompt" 확인. symlink 추가 후 DOR-5 rollback → orchestrator가 3개 하위 이슈 생성 + 분배 코멘트 남김 + in_progress 유지 (코디네이터 상태)
 - **Trap**: (1) cwd가 올바르지만 AGENTS.md가 cwd/ 하위가 아니라 cwd/.. 에 있어서 Hermes `_load_agents_md`(`top-level only, no recursive walk`)가 못 찾음. Hermes 문서에는 "parent walk up to 5 levels"라고 적혀있지만 구현과 다름. (2) `persistSession=true` 상태라 session resume으로 이전 완료 맥락 유지, 롤백 지시 코멘트를 "이미 해결된 것"으로 해석. `persistSession=false` 전환으로 해결. 운영 적용 시 재검토 필요
+
+---
+
+## 2026-04-10: /hermes-status 통합 조회 인터페이스 추가 [done]
+- **What**: `scripts/hermes_status.py`를 추가해 모니터 스냅샷 캐시를 우선 재사용하고 stale 시 live refresh 후 agent/profile별 상태를 한 화면에 요약하도록 구성. `/hermes-status` skill, 아키텍처 문서, 운영 런북도 새 인터페이스 기준으로 갱신
+- **Why**: 기존 스킬 초안은 수집 명령 나열에 가까워 운영자가 heartbeat/open issue/slack/cron 상태를 직접 조합해야 했다. 동일 데이터 소스를 재사용하는 조회 전용 인터페이스가 있어야 대응 속도가 빨라짐
+- **Impact**: 운영자가 `python3 scripts/hermes_status.py` 또는 `/hermes-status`로 gateway 상태, stale heartbeat, agent별 issue 현황, profile별 slack/cron 상태를 즉시 확인 가능
+- **Test**: `python3 scripts/hermes_status.py --refresh`; `python3 scripts/hermes_status.py`; `python3 -m unittest tests.test_hermes_status -v`; `python3 -m py_compile scripts/hermes_status.py scripts/hermes_monitor.py tests/test_hermes_status.py`
+---
+
+## 2026-04-10: CTO 리뷰 레이어 구축 + E2E 검증 [done]
+- **What**: 7번째 프로필 `team-cto` 추가. 구현 엔지니어(backend/frontend/data/devops) 완료 시 `[impl-done]` 코멘트 + `in_review` 전환 + team-cto 재할당. CTO는 10개 체크리스트 + HubSpot judge 원칙으로 리뷰 → PASS/CHANGES_REQUESTED/BLOCKED 판정. `rules/cto-review-checklist.md` 신규 (Paperclip 공식 CTO 워크플로우 + ChatDev 7-role 차용)
+- **Why**: 현재 구조에는 코드/아키텍처 리뷰어 부재. team-qa는 기능 테스트만, 코드 품질/보안/아키텍처 일관성을 판단하는 레이어 없음. 2026 업계 표준(ChatDev, Paperclip 공식 워크플로우, Anthropic specialist dispatch)에서는 CTO가 기술 게이트키퍼 역할. orchestrator(CEO)는 분해/분배, CTO는 리뷰/기술 판단으로 책임 분리
+- **Impact**: 5개 engineer 프로필의 완료 경로가 `in_review → CTO` 게이트 통과 필수. 보안 이슈(SQL injection/XSS/하드코딩 시크릿/no-delete 위반)는 무조건 BLOCKED + orchestrator 에스컬레이션. 피드백은 HubSpot judge 원칙으로 signal-to-noise 최적화
+- **Test**: DOR-16 E2E — backend가 `get_user_by_email` 구현 → `[impl-done]` 코멘트 포맷 준수 → `in_review` + team-cto 재할당 → CTO가 comment-wake 픽업 → 10개 체크리스트 전수 + 파일:라인 구체 인용(`user_lookup.py:26-42`) + pytest/mypy/ruff 실제 재검증 → PASS → done
+- **Trap**: (1) `extraArgs: ["--reasoning-effort", "high"]`를 Paperclip adapterConfig에 넣었더니 Hermes chat CLI가 인식 못 함 (`unrecognized arguments`). 해결: `~/.hermes/profiles/cto/config.yaml`의 `agent.reasoning_effort: high` 설정으로 변경, extraArgs는 빈 배열. (2) failed run 이후 CTO가 자동 재시도 안 함. `in_review` 상태는 heartbeat `{{#noTask}}` 픽업 대상(todo/backlog/in_progress)에서 제외됨. 해결: comment-wake로 트리거 (`{{#commentId}}` 모드). assignee 변경 이벤트는 초회만 즉시 wake하고 이후엔 재실행 안 함
 
 ---
 

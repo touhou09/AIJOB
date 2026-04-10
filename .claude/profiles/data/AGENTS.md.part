@@ -29,7 +29,24 @@
 - [ ] 데이터 품질 메트릭 기록 (row count, null ratio, distinct 등)
 - [ ] 리니지 문서화
 - [ ] 스키마 변경 시 BREAKING 플래그 + 영향 컴포넌트 태깅
+- [ ] PII 마스킹 self-review
 
 ### 개인정보 보호
 - PII 데이터 취급 시 마스킹/암호화 적용
 - 분석 결과물에 raw PII 노출 금지
+
+### CTO 리뷰 핸드오프 (필수)
+
+구현 완료 시 **직접 done 처리하지 말고** CTO 리뷰로 넘긴다:
+
+1. `[impl-done]` 코멘트 작성 (변경 파일 리스트 + 주요 변경 + self-check 결과 + 스키마 변경 여부)
+2. `status: in_review`로 전환
+3. `assigneeAgentId`를 team-cto로 변경
+
+**BREAKING 스키마 변경**은 코멘트에 `[BREAKING]` 접두 필수. CTO가 영향 범위 평가 후 판단.
+
+포맷과 규칙은 `rules/paperclip-policy.md` "CTO 리뷰 핸드오프" 섹션 참조.
+
+### 리뷰 피드백 수신 시
+- CTO가 `CHANGES_REQUESTED`로 복귀 → 피드백 코멘트 읽고 수정 → 다시 `in_review` + team-cto 재할당
+- `BLOCKED` (스키마 breaking 영향 큼) → orchestrator가 다른 도메인과 조율

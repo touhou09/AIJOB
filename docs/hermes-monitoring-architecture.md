@@ -33,6 +33,7 @@ Hermes 6개 프로필, Paperclip, Slack, cron을 한 번에 점검하는 경량 
 - 마지막 수집 시각
 - 컴포넌트별 raw health
 - 최근 alert 목록
+- Slack 배달 결과(`notification.sent`, `notification.message`)
 - `/hermes-status`에서 즉시 재사용할 요약 정보
 
 ### 3) 알림 경로
@@ -42,10 +43,11 @@ Hermes 6개 프로필, Paperclip, Slack, cron을 한 번에 점검하는 경량 
 - 동일 alert 중복 전송 억제를 위해 후속 단계에서 이전 스냅샷 diff 비교 추가 가능
 
 ### 4) 조회 경로
-`/hermes-status` 스킬은 아래 순서로 동작한다.
-1. 최신 스냅샷이 있으면 먼저 출력
-2. 스냅샷이 없거나 오래됐으면 `python3 scripts/hermes_monitor.py --write-snapshot ...` 실행
-3. 필요 시 원시 명령(`launchctl`, `hermes cron list`, Paperclip health)로 drill-down
+`/hermes-status` 스킬은 `python3 scripts/hermes_status.py`를 기본 인터페이스로 사용한다.
+1. 최신 스냅샷이 15분 이내면 그대로 출력
+2. 스냅샷이 없거나 오래됐으면 내부적으로 live 수집 후 스냅샷을 갱신
+3. 에이전트별 heartbeat/open issue, profile별 gateway/slack/cron 상태를 통합 요약
+4. 필요 시 원시 명령(`launchctl`, `hermes cron list`, Paperclip health)로 drill-down
 
 ## 데이터 흐름
 1. launchd 또는 cron이 `scripts/hermes_monitor.py` 실행

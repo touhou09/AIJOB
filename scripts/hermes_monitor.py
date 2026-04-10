@@ -362,11 +362,6 @@ def main():
     token = read_auth_token()
     snapshot = collect_snapshot(args.api_base, args.company_id, token, args.warning_minutes, args.latency_warn_ms)
 
-    if args.write_snapshot:
-        path = Path(args.write_snapshot).expanduser()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n")
-
     if args.notify:
         try:
             sent, message = send_slack(args.slack_webhook_url, snapshot)
@@ -374,6 +369,13 @@ def main():
         except Exception as exc:
             snapshot["notification"] = {"sent": False, "message": str(exc)}
             snapshot["alerts"].append(f"slack webhook send failed: {exc}")
+    else:
+        snapshot["notification"] = {"sent": False, "message": "disabled"}
+
+    if args.write_snapshot:
+        path = Path(args.write_snapshot).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n")
 
     if args.json:
         print(json.dumps(snapshot, indent=2, ensure_ascii=False))

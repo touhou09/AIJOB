@@ -3,11 +3,14 @@
 > 최종 업데이트: 2026-04-10
 
 ## 현재 상태
-- Hermes v0.8.0 + Paperclip + 6개 에이전트 정상 가동
+- Hermes v0.8.0 + Paperclip + **7개 에이전트** 정상 가동 (CTO 신규 추가)
 - **Agent Harness 구조 적용**: AIJOB = 템플릿 레포, `~/.hermes/profiles/{p}/` = 런타임 (단방향 sync)
-- 6개 프로필 전부 SOUL + AGENTS.md + rules/ + STATE/CONTEXT/DECISIONS 배포 완료
-- Orchestrator 자율 분해/분배 E2E 검증 완료 (DOR-6 → DOR-8/9/10)
-- backend만 Slack 연결, 나머지 5개는 cron/heartbeat 전용 (Socket Mode 충돌 해결)
+- 7개 프로필 전부 SOUL + AGENTS.md + rules/ + STATE/CONTEXT/DECISIONS 배포 완료
+- **CTO 리뷰 레이어 구축 완료**: engineer 완료 → in_review → team-cto 자동 핸드오프 → 10개 체크리스트 기반 리뷰 → PASS/CHANGES_REQUESTED/BLOCKED (DOR-16 E2E 검증 완료)
+- Orchestrator 자율 분해/분배 E2E 검증 완료 (DOR-6 → DOR-8/9/10, DOR-5 → DOR-13/14/15)
+- backend만 Slack 연결, 나머지 6개는 cron/heartbeat 전용 (Socket Mode 충돌 해결)
+- Hermes 모니터 수집기 + launchd plist 예제가 저장소에 정착, 스냅샷에 Slack 배달 결과까지 기록
+- `/hermes-status` 조회 인터페이스 추가: 캐시 재사용 + stale 시 live refresh + agent/profile별 통합 요약 지원
 - Paperclip 외부 접속 정상화 (cloudflared 커넥터 단일화)
 
 ## 인프라 현황
@@ -43,14 +46,15 @@ AIJOB/.claude/                         ← 템플릿 (git, source of truth)
 
 ## Paperclip 에이전트 adapterConfig
 
-| 에이전트 | cwd |
-|---------|-----|
-| orchestrator | `~/.hermes/profiles/orchestrator/workspace` |
-| team-backend | `~/.hermes/profiles/backend/workspace` |
-| team-frontend | `~/.hermes/profiles/frontend/workspace` |
-| team-qa | `~/.hermes/profiles/qa/workspace` |
-| team-devops | `~/.hermes/profiles/devops/workspace` |
-| team-data | `~/.hermes/profiles/data/workspace` |
+| 에이전트 | role | 모델 | cwd |
+|---------|------|------|-----|
+| orchestrator | ceo | gpt-5.4 | `~/.hermes/profiles/orchestrator/workspace` |
+| team-cto | cto | gpt-5.4 (reasoning: high) | `~/.hermes/profiles/cto/workspace` |
+| team-backend | engineer | gpt-5.4 | `~/.hermes/profiles/backend/workspace` |
+| team-frontend | engineer | gpt-5.4 | `~/.hermes/profiles/frontend/workspace` |
+| team-qa | qa | gpt-5.4 | `~/.hermes/profiles/qa/workspace` |
+| team-devops | devops | gpt-5.4 | `~/.hermes/profiles/devops/workspace` |
+| team-data | researcher | gpt-5.4 | `~/.hermes/profiles/data/workspace` |
 
 ## Cron Jobs (backend 프로필만)
 

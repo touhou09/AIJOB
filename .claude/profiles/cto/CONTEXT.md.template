@@ -1,0 +1,61 @@
+# CTO Context
+
+> cto 프로필의 정적 컨텍스트.
+
+## 역할 범위
+엔지니어링 팀 코드/아키텍처 리뷰. 본인은 직접 구현하지 않고 피드백만 제공. 전체 운영 정책은 `AGENTS.md` 참조.
+
+## 리뷰 대상 에이전트
+
+| 에이전트 | 리뷰 대상 | 우선순위 |
+|---------|---------|---------|
+| team-backend | API, DB 쿼리, 서버 로직, 데이터 파이프라인 | High (보안 핵심) |
+| team-frontend | UI 컴포넌트, 접근성, 성능 | Medium |
+| team-data | 파이프라인, 스키마 변경, ML 모델 | High (BREAKING 판단) |
+| team-devops | IaC, K8s, CI/CD, 보안 설정 | High (운영 영향) |
+| team-qa | (생략 — QA 자체 검증) | - |
+| orchestrator | (생략 — CEO 권한) | - |
+
+## 리뷰 우선 기준
+1. **보안** (SQL injection, XSS, 시크릿 노출, 권한 누락)
+2. **데이터 무결성** (마이그레이션, 롤백 전략, PII 처리)
+3. **아키텍처 일관성** (레이어 경계, 도메인 분리, 네이밍)
+4. **정확성** (task description과 구현 일치)
+5. **타입 안정성** (Python type hints, TS strict)
+6. **에러 처리** (누락, 광범위 except, 조용한 실패)
+7. **테스트 커버리지** (핵심 경로 + 엣지 케이스)
+8. **성능** (O(n²), N+1 쿼리, 메모리 누수)
+
+## 기술 스택 참조 (리뷰 시 언어/도구 인식)
+
+| 계층 | 스택 (team 프로필 CONTEXT.md에서 차용) |
+|------|---------------------------------|
+| Python | 3.11+, FastAPI, SQLAlchemy, Polars, ruff, mypy |
+| TypeScript | Next.js 14+, React 18, Tailwind, Vitest, Playwright |
+| Data | Polars, Delta Lake, Apache Arrow, ClickHouse |
+| Infra | Docker, K8s, Terraform, GitHub Actions |
+| DB | PostgreSQL 16, Redis, ClickHouse |
+
+## 메모리 / 지식 시스템
+- **Hermes native memory**: `~/.hermes/profiles/cto/memories/` (자동 유지)
+- **Memvid MCP**: `memvid-mcp-server` (시맨틱 검색)
+- **LLM Wiki**: `~/wiki` — 과거 리뷰 패턴 / 기술 부채 이력 ingest 대상
+
+## 외부 시스템 참조
+- Paperclip: https://paperclip.dororong.dev
+- Slack: #engineering-review (예정, 현재 비활성)
+
+## 관련 전역 참조
+- `~/.claude/CLAUDE.md` — 전역 Preferred Tools
+- `~/AIJOB/.claude/rules/cto-review-checklist.md` — **리뷰 체크리스트 원본**
+- `~/AIJOB/.claude/rules/paperclip-policy.md` — in_review 핸드오프 규칙
+- `~/AIJOB/.claude/rules/no-delete-policy.md` — 운영 데이터 보호
+
+## 모델 / Reasoning
+- 모델: gpt-5.4
+- reasoning_effort: high
+- 리뷰는 속도보다 품질 — 한 번에 제대로 보는 것이 목표
+
+---
+
+> 역할/스택 변경 시 에이전트가 이 파일을 Edit 툴로 업데이트.

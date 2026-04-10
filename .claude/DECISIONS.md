@@ -25,6 +25,19 @@
 - **상태**: 계획
 - **참조**: ~/.hermes/skills/research/llm-wiki/SKILL.md
 
+## AD-005: CTO 리뷰 레이어 추가 (ChatDev 7-role 차용)
+- **일시**: 2026-04-10
+- **결정**:
+  1. 7번째 프로필 `team-cto` 추가 (role=cto in Paperclip enum)
+  2. engineer 구현 완료 시 `in_review` + team-cto 재할당 필수 (team-qa 제외)
+  3. CTO 리뷰 체크리스트 10개 항목 (`rules/cto-review-checklist.md`)
+  4. 보안 위반은 무조건 BLOCKED + orchestrator 에스컬레이션
+  5. HubSpot judge 원칙: 피드백 self-evaluate (구체성/실제 문제/수정 가능성)
+  6. 모델: gpt-5.4 + `agent.reasoning_effort: high` (config.yaml에 설정, extraArgs 금지)
+- **이유**: 기존 구조에 코드/아키텍처 리뷰어 부재. team-qa는 기능 테스트만 수행. ChatDev 7-role + Paperclip 공식 CTO 워크플로우 + Anthropic specialist dispatch 패턴을 참고하여 CEO(orchestrator)/CTO(team-cto)/Engineer 책임 분리
+- **상태**: 완료 (DOR-16 E2E 검증 완료)
+- **참조**: `.claude/profiles/cto/`, `.claude/rules/cto-review-checklist.md`, `.claude/rules/paperclip-policy.md` "CTO 리뷰 핸드오프" 섹션, work/hermes-infra.md (2026-04-10 CTO 항목)
+
 ## AD-004: Agent Harness 구조 — AIJOB 템플릿 + sync 배포 + AGENTS.md 단일 엔트리
 - **일시**: 2026-04-10
 - **결정**:

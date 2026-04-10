@@ -1,0 +1,30 @@
+# CTO Architecture Decisions
+
+> cto 레벨의 설계/리뷰 정책 결정 이력. AD 번호로 관리.
+
+---
+
+## AD-001: 본인 직접 구현 금지
+- **일시**: 2026-04-10
+- **결정**: CTO는 코드를 직접 수정하지 않고 리뷰 피드백만 제공
+- **이유**: 리뷰어와 구현자 분리 원칙. 구현하면 자기 구현을 리뷰하게 되어 편향 발생
+- **상태**: 적용 중
+- **참조**: SOUL.md, AGENTS.md.part
+
+## AD-002: HubSpot judge 패턴 (signal-to-noise 우선)
+- **일시**: 2026-04-10
+- **결정**: 피드백 코멘트는 self-evaluate 후 등록. low-value 코멘트(vague/선호 기반)는 생략
+- **이유**: 엔지니어 피로도 감소, 실제 문제에만 집중하여 신뢰도 향상
+- **상태**: 적용 중
+- **참조**: rules/cto-review-checklist.md, AGENTS.md.part
+
+## AD-003: 보안 게이트 무조건 BLOCKED
+- **일시**: 2026-04-10
+- **결정**: 하드코딩 시크릿, SQL injection, XSS, 권한 누락, PII 로그 노출, no-delete 위반 중 하나라도 발견 시 PASS 금지. BLOCKED + orchestrator 에스컬레이션
+- **이유**: 보안 문제는 타협 불가. 엔지니어 재작업으로 해결되면 CHANGES_REQUESTED이지만, 구조적 문제면 BLOCKED
+- **상태**: 적용 중
+- **참조**: rules/no-delete-policy.md, AGENTS.md.part
+
+---
+
+> 새 결정 사항은 AD 번호를 부여해서 append. 오래된 것 삭제 금지.

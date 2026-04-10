@@ -1,44 +1,54 @@
 ---
 name: hermes-status
-description: Hermes Agent, Paperclip, LLM Wiki의 통합 상태를 확인한다.
+description: Hermes Agent, Paperclip, Slack 상태를 하나의 조회 인터페이스로 확인한다.
 ---
 
-# Hermes/Paperclip/Wiki 상태 확인
+# Hermes 통합 상태 조회
 
-Hermes Agent, Paperclip, LLM Wiki의 통합 상태를 확인한다.
+`/hermes-status`는 모니터 스냅샷을 재사용해 게이트웨이, Paperclip heartbeat, 이슈 처리 현황, cron/slack 상태를 한 번에 보여준다.
 
-## 절차
+## 기본 사용
 
-1. **통합 모니터 스냅샷 우선 조회**
-   - `python3 scripts/hermes_monitor.py --write-snapshot .claude/tmp/hermes-monitor/latest.json`
-   - 최근 alert, gateway PID, Paperclip latency, heartbeat stale 여부를 먼저 확인
-   - alert가 있으면 세부 원인 확인 단계로 내려간다
+```bash
+cd /Users/yuseungju/AIJOB
+python3 scripts/hermes_status.py
+```
 
-2. **Hermes Agent**
-   - `hermes --version`
-   - 활성 프로필: `hermes profile list`
-   - 게이트웨이 상태: `launchctl list | grep hermes`
-   - Cron 활성 수: `hermes cron list`
-   - Cron 이력: `grep -R "cron.scheduler" ~/.hermes/profiles/*/logs/agent.log* | tail -20`
+동작 규칙:
+1. `.claude/tmp/hermes-monitor/latest.json`가 15분 이내면 캐시를 그대로 사용한다
+2. 스냅샷이 없거나 오래됐으면 `scripts/hermes_monitor.py`와 같은 데이터 소스로 live 수집 후 스냅샷을 갱신한다
+3. 에이전트별 heartbeat age, open/done issue 수, profile별 gateway/slack/cron 상태를 함께 출력한다
 
-3. **Paperclip**
-   - Health: `curl -s --max-time 3 https://paperclip.dororong.dev/api/health`
-   - Agent 상태/heartbeat: `curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3100/api/companies/abac28ea-9edd-4ddb-b40a-0baf52505357/agents`
-   - 최근 이슈: `curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3100/api/companies/abac28ea-9edd-4ddb-b40a-0baf52505357/issues`
+## 자주 쓰는 옵션
 
-4. **Slack 전달 상태**
-   - `grep -R "slack" ~/.hermes/profiles/*/logs/gateway.log* | tail -20`
-   - `Slack app token already in use`가 보이면 다중 프로필 충돌로 판단
+```bash
+python3 scripts/hermes_status.py --refresh
+python3 scripts/hermes_status.py --json
+python3 scripts/hermes_status.py --max-age-minutes 5
+python3 scripts/hermes_status.py --snapshot-path .claude/tmp/hermes-monitor/latest.json
+```
 
-5. **LLM Wiki**
-   - Wiki 경로 존재 여부: `ls ~/wiki/`
-   - 총 페이지 수: `find ~/wiki -name "*.md" -not -path "*/raw/*" | wc -l`
-   - 마지막 log 엔트리: `tail -3 ~/wiki/log.md`
+- `--refresh`: 캐시 무시 후 즉시 live 수집
+- `--json`: 후처리용 raw snapshot 출력
+- `--max-age-minutes`: 캐시 허용 시간 조정
+- `--snapshot-path`: 다른 스냅샷 경로 사용
 
-6. 결과를 요약 테이블 또는 bullet로 출력
+## 출력 해석
+
+- `summary`: gateway/agent 총량, stale agent 수, open issue 총합, alert 수
+- `agents`: 에이전트별 현재 상태와 heartbeat 나이, open/done/cancelled issue 수
+- `profiles`: profile별 gateway/slack/cron 집계와 issue 처리 현황
+- `alerts`: 즉시 drill-down이 필요한 경고 목록
+
+## drill-down 기준
+
+- `heartbeat stale:*`: 해당 agent의 recent heartbeat 및 gateway 로그 확인
+- `slack degraded:*`: `~/.hermes/profiles/{profile}/logs/gateway.log*` 확인
+- gateway가 `missing`: `launchctl list | grep ai.hermes.gateway-{profile}` 확인
 
 ## 참고 문서
 - 설계: `docs/hermes-monitoring-architecture.md`
-- 런북: `.claude/runbooks/hermes-gateway.md`
+- 수집기: `scripts/hermes_monitor.py`
+- 런북: `.claude/runbooks/hermes-monitoring.md`
 
 사용법: `/hermes-status`

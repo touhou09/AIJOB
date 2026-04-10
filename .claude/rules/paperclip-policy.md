@@ -6,18 +6,68 @@
 - description 없는 이슈 생성 금지
 - 상태/담당자 전환은 에이전트 자율 판단. 단 규칙 내에서.
 
-## 이슈 상태 흐름 (Kanban)
+## 이슈 상태 흐름 (Kanban + CTO 리뷰 게이트)
 ```
-todo → in_progress → in_review → done
-              ↓          ↑
-          blocked ──────┘
+todo ─→ in_progress ─→ in_review ─→ done
+  ↑          │            │
+  │          │            ├─→ todo (CHANGES_REQUESTED, engineer 복귀)
+  │          │            └─→ blocked (BLOCKED, orchestrator 에스컬레이션)
+  │          ↓
+  └── blocked
 ```
 - **todo**: 대기 — 에이전트가 heartbeat로 자동 픽업
 - **in_progress**: 에이전트 실행 중
-- **in_review**: 리뷰 대기 (reporter ≠ assignee 완료 시 도달)
-- **done**: 완료 (reporter == assignee이거나 리뷰 통과 시)
-- **blocked**: 블로커 존재 — 이유 코멘트 + 블로커 해결 에이전트로 재할당
+- **in_review**: **CTO 리뷰 대기** (engineer 완료 시 자동 전환 + CTO로 재할당)
+- **done**: 완료 (리뷰 통과 또는 reporter == assignee)
+- **blocked**: 블로커/보안 이슈 — orchestrator로 에스컬레이션
 - **backlog 사용 금지** — Paperclip 기본값이 backlog이므로 생성 시 반드시 `"status": "todo"` 명시
+
+## CTO 리뷰 핸드오프 (engineer → CTO)
+
+다음 엔지니어 프로필은 **구현 이슈 완료 시 반드시 CTO 리뷰를 거친다**:
+- team-backend
+- team-frontend
+- team-data
+- team-devops (인프라/IaC 변경 시)
+
+### engineer 측 완료 절차
+구현 완료 시 다음 순서로 수행:
+
+1. **self-check 수행**
+   - 린터/타입 체커/테스트 실행 결과 확인
+   - 하드코딩 시크릿 / raw SQL / 누락된 에러 처리 스스로 점검
+
+2. **코멘트 남기기**
+   ```markdown
+   [impl-done] DOR-XX 구현 완료
+
+   ## 변경 파일
+   - path/to/file1.py (+N/-M 줄) — {한 줄 설명}
+   - path/to/file2.py (+K/-L 줄) — {한 줄 설명}
+
+   ## 주요 변경 요약
+   {2~3줄로 무엇을 어떻게 구현했는지}
+
+   ## self-check
+   - [x] ruff/eslint 통과
+   - [x] mypy/tsc 통과
+   - [x] 단위 테스트 통과 (N개 추가, 모두 pass)
+   - [x] 보안 self-review (시크릿/SQL injection/XSS 확인)
+   ```
+
+3. **상태 전환 + 재할당**
+   - `status: in_review`
+   - `assigneeAgentId`: team-cto
+
+### 리뷰 생략 조건
+- 단순 문서/상수/버전 업데이트
+- team-qa가 직접 수행한 테스트 코드 (QA 자체 검증)
+- orchestrator가 reporter인 진단 이슈 (DIAG 등)
+
+생략 시 engineer가 바로 `done` 처리 가능. 단 코멘트에 "skip-cto-review: {이유}" 명시.
+
+### CTO 측 리뷰 절차
+`rules/cto-review-checklist.md` 참조. 10개 체크리스트 항목 + HubSpot judge 원칙 + 판단(PASS/CHANGES_REQUESTED/BLOCKED).
 
 ## 이슈 생성 규칙
 
