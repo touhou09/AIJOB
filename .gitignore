@@ -50,3 +50,4 @@ npm-debug.log*
 
 # OpenClaw 잔재
 .omc/
+*.cover

@@ -44,10 +44,12 @@ Hermes 6개 프로필, Paperclip, Slack, cron을 한 번에 점검하는 경량 
 
 ### 4) 조회 경로
 `/hermes-status` 스킬은 `python3 scripts/hermes_status.py`를 기본 인터페이스로 사용한다.
-1. 최신 스냅샷이 15분 이내면 그대로 출력
-2. 스냅샷이 없거나 오래됐으면 내부적으로 live 수집 후 스냅샷을 갱신
-3. 에이전트별 heartbeat/open issue, profile별 gateway/slack/cron 상태를 통합 요약
-4. 필요 시 원시 명령(`launchctl`, `hermes cron list`, Paperclip health)로 drill-down
+1. 최신 스냅샷이 15분 이내이고 요청한 recent KPI window와 cache의 `issueKpiWindowDays` 가 같으면 그대로 출력
+2. 스냅샷이 없거나 오래됐거나 KPI window 요청이 다르면 내부적으로 live 수집 후 스냅샷을 갱신하되 마지막 Slack `notification` 결과를 유지
+3. 에이전트별 heartbeat/open issue, 최근 window의 resolved/done/failed ratio, profile별 gateway/slack/cron 상태를 통합 요약
+4. assignee가 비어 있는 종결 이슈도 `unattributed` bucket으로 보존해 recent resolved/failed 총량이 Paperclip 데이터와 일치하도록 유지한다
+5. `failed`는 종결 상태 중 `cancelled` 만 포함하고, `blocked` 는 open backlog로 별도 표시한다
+6. 필요 시 원시 명령(`launchctl`, `hermes cron list`, Paperclip health)로 drill-down
 
 ## 데이터 흐름
 1. launchd 또는 cron이 `scripts/hermes_monitor.py` 실행
@@ -73,13 +75,13 @@ Hermes 6개 프로필, Paperclip, Slack, cron을 한 번에 점검하는 경량 
 ## alert 규칙 v1
 - gateway 누락: `launchctl`에서 `ai.hermes.gateway-{profile}` 미발견
 - Paperclip 지연: health latency > 1500ms 또는 status != ok
-- heartbeat stale: `lastHeartbeatAt`이 30분 이상 오래됨 또는 null
+- heartbeat stale: `status=running`이거나 open issue가 있는 에이전트만 대상으로 `lastHeartbeatAt`이 30분 이상 오래되거나 null
 - cron failure: 최근 로그에 `cron.scheduler` 실패/에러 존재
 - Slack degraded: 최근 `gateway.log`에 Slack connect failure/conflict 존재
 
 ## 알려진 갭
 1. Hermes cron이 현재 job history API를 제공하지 않아 로그 파싱 기반이다.
-2. Paperclip 이슈 상태 흐름에 `failed`가 없어 issue 실패율은 `cancelled`를 대체 지표로 사용한다.
+2. Paperclip 이슈 상태 흐름에 명시적 `failed` 상태가 없어 최근 실패율은 종결 상태인 `cancelled`를 대체 지표로 사용한다. `blocked` 는 미해결 backlog로만 집계한다.
 3. Slack Webhook URL은 별도 시크릿 관리가 필요하다. 문서에는 값 저장 금지.
 
 ## 운영 방법

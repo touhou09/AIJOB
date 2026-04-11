@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -29,6 +30,7 @@ class HermesStatusTests(unittest.TestCase):
             snapshot_path = Path(tmp_dir) / "latest.json"
             snapshot = {
                 "generatedAt": "2999-01-01T00:00:00+00:00",
+                "issueKpiWindowDays": 7,
                 "alerts": [],
                 "agents": [],
                 "gateways": [],
@@ -53,18 +55,26 @@ class HermesStatusTests(unittest.TestCase):
                 company_id="company",
                 warning_minutes=30,
                 latency_warn_ms=1500,
+                recent_window_days=7,
             )
 
             self.assertEqual(result.source, "cache")
             self.assertEqual(result.snapshot, snapshot)
 
-    def test_resolve_snapshot_refreshes_when_stale(self) -> None:
+    def test_resolve_snapshot_refreshes_when_stale_and_preserves_notification_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             snapshot_path = Path(tmp_dir) / "latest.json"
-            snapshot_path.write_text(json.dumps({"generatedAt": "2000-01-01T00:00:00+00:00"}))
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "generatedAt": "2000-01-01T00:00:00+00:00",
+                        "notification": {"sent": True, "message": "ok"},
+                    }
+                )
+            )
             refreshed_snapshot = {
                 "generatedAt": "2026-04-10T07:20:00+00:00",
-                "alerts": ["heartbeat stale:team-qa age=44m"],
+                "alerts": ["heartbeat stale:team-devops age=44m"],
                 "agents": [],
                 "gateways": [],
                 "cron": {"profiles": []},
@@ -87,16 +97,78 @@ class HermesStatusTests(unittest.TestCase):
                 company_id="company",
                 warning_minutes=30,
                 latency_warn_ms=1500,
+                recent_window_days=7,
             )
 
             self.assertEqual(result.source, "live")
-            self.assertEqual(result.snapshot, refreshed_snapshot)
-            self.assertEqual(json.loads(snapshot_path.read_text()), refreshed_snapshot)
+            self.assertEqual(result.snapshot["notification"], {"sent": True, "message": "ok"})
+            self.assertEqual(json.loads(snapshot_path.read_text()), result.snapshot)
 
-    def test_format_status_text_includes_agent_and_profile_summary(self) -> None:
+    def test_resolve_snapshot_refreshes_when_requested_window_differs_from_fresh_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            snapshot_path = Path(tmp_dir) / "latest.json"
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "generatedAt": "2999-01-01T00:00:00+00:00",
+                        "issueKpiWindowDays": 7,
+                        "notification": {"sent": True, "message": "cached"},
+                        "alerts": [],
+                        "agents": [],
+                        "gateways": [],
+                        "cron": {"profiles": []},
+                        "slack": [],
+                        "paperclipHealth": {"status": "ok", "latencyMs": 5},
+                    }
+                )
+            )
+            refreshed_snapshot = {
+                "generatedAt": "2026-04-10T07:20:00+00:00",
+                "issueKpiWindowDays": 30,
+                "alerts": [],
+                "agents": [],
+                "gateways": [],
+                "cron": {"profiles": []},
+                "slack": [],
+                "paperclipHealth": {"status": "ok", "latencyMs": 5},
+            }
+            collect_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+            def collect_snapshot(*args: object, **kwargs: object) -> dict[str, object]:
+                collect_calls.append((args, kwargs))
+                return refreshed_snapshot
+
+            monitor_module = SimpleNamespace(
+                read_auth_token=lambda: "token",
+                collect_snapshot=collect_snapshot,
+            )
+
+            result = MODULE.resolve_snapshot(
+                monitor_module,
+                snapshot_path=snapshot_path,
+                max_age_minutes=15,
+                refresh=False,
+                write_snapshot=False,
+                api_base="http://localhost:3100/api",
+                company_id="company",
+                warning_minutes=30,
+                latency_warn_ms=1500,
+                recent_window_days=30,
+            )
+
+            self.assertEqual(result.source, "live")
+            self.assertEqual(len(collect_calls), 1)
+            self.assertEqual(result.snapshot["issueKpiWindowDays"], 30)
+            self.assertEqual(result.snapshot["notification"], {"sent": True, "message": "cached"})
+
+    def test_format_status_text_excludes_idle_agents_without_open_work_from_summary(self) -> None:
+        active_heartbeat_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        idle_stale_heartbeat_at = datetime.now(timezone.utc) - timedelta(hours=9)
         snapshot = {
             "generatedAt": "2026-04-10T07:16:02.474691+00:00",
             "alerts": ["slack degraded:frontend"],
+            "issueKpiWindowDays": 7,
+            "failedIssueStatuses": ["cancelled"],
             "paperclipHealth": {"status": "ok", "latencyMs": 5.3},
             "gateways": [{"profile": "frontend", "state": "running"}],
             "agents": [
@@ -104,13 +176,26 @@ class HermesStatusTests(unittest.TestCase):
                     "profile": "frontend",
                     "name": "team-frontend",
                     "status": "idle",
-                    "heartbeatAge": "55m",
-                    "lastHeartbeatAt": "2026-04-10T06:20:58.944Z",
-                    "issueStats": {"open": 2, "done": 1, "cancelled": 0},
-                }
+                    "heartbeatAge": "5m",
+                    "lastHeartbeatAt": active_heartbeat_at.isoformat(),
+                    "issueStats": {"open": 2, "done": 1, "cancelled": 0, "blocked": 1},
+                    "recentIssueStats": {"resolved": 2, "done": 1, "failed": 1, "doneRatio": 0.5, "failedRatio": 0.5},
+                },
+                {
+                    "profile": "data",
+                    "name": "team-data",
+                    "status": "idle",
+                    "heartbeatAge": "9h",
+                    "lastHeartbeatAt": idle_stale_heartbeat_at.isoformat(),
+                    "issueStats": {"open": 0, "done": 0, "cancelled": 0, "blocked": 0},
+                    "recentIssueStats": {"resolved": 0, "done": 0, "failed": 0, "doneRatio": 0.0, "failedRatio": 0.0},
+                },
             ],
+            "unattributedIssueStats": {"open": 0, "done": 3, "cancelled": 0, "blocked": 0, "total": 3},
+            "unattributedRecentIssueStats": {"resolved": 3, "done": 3, "failed": 0, "doneRatio": 1.0, "failedRatio": 0.0},
             "cron": {"profiles": [{"profile": "frontend", "counts": {"runs": 3, "success": 2, "failure": 1}}]},
             "slack": [{"profile": "frontend", "status": "error"}],
+            "notification": {"sent": False, "message": "disabled"},
         }
         result = MODULE.SnapshotLoadResult(
             snapshot=snapshot,
@@ -121,10 +206,20 @@ class HermesStatusTests(unittest.TestCase):
 
         text = MODULE.format_status_text(result, warning_minutes=30)
 
-        self.assertIn("summary: gateways=1/1 agents=0/1 stale_agents=1 open_issues=2 alerts=1", text)
+        self.assertIn(
+            "summary: gateways=1/1 fresh_agents=1/1 stale_agents=0 open_issues=2 recent_resolved=5 recent_failed=1 alerts=1",
+            text,
+        )
+        self.assertIn("recent_issue_window: 7d failed_statuses=cancelled", text)
         self.assertIn("team-frontend", text)
+        self.assertIn("ratio=0.50/0.50", text)
+        self.assertIn("unattributed paperclip", text)
+        self.assertIn("recent=3  done=3  failed=0", text)
         self.assertIn("gateway=running", text)
+        self.assertIn("- unattributed gateway=n/a", text)
         self.assertIn("slack=error", text)
+        self.assertIn("notification:", text)
+        self.assertIn("message=disabled", text)
         self.assertIn("slack degraded:frontend", text)
 
 

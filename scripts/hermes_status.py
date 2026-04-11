@@ -59,6 +59,26 @@ def snapshot_age_minutes(snapshot: dict[str, Any]) -> float | None:
     return max(age.total_seconds(), 0.0) / 60.0
 
 
+def snapshot_issue_kpi_window_days(snapshot: dict[str, Any] | None) -> int | None:
+    if snapshot is None:
+        return None
+    raw_value = snapshot.get("issueKpiWindowDays")
+    if raw_value is None:
+        return None
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        return None
+
+
+def merge_snapshot_metadata(live_snapshot: dict[str, Any], cached_snapshot: dict[str, Any] | None) -> dict[str, Any]:
+    if cached_snapshot is None:
+        return live_snapshot
+    if "notification" not in live_snapshot and "notification" in cached_snapshot:
+        live_snapshot["notification"] = cached_snapshot["notification"]
+    return live_snapshot
+
+
 def collect_live_snapshot(
     monitor_module: Any,
     *,
@@ -66,6 +86,7 @@ def collect_live_snapshot(
     company_id: str,
     warning_minutes: int,
     latency_warn_ms: int,
+    recent_window_days: int,
 ) -> dict[str, Any]:
     token = monitor_module.read_auth_token()
     return monitor_module.collect_snapshot(
@@ -74,6 +95,7 @@ def collect_live_snapshot(
         token,
         warning_minutes,
         latency_warn_ms,
+        recent_window_days,
     )
 
 
@@ -88,26 +110,36 @@ def resolve_snapshot(
     company_id: str,
     warning_minutes: int,
     latency_warn_ms: int,
+    recent_window_days: int,
 ) -> SnapshotLoadResult:
-    snapshot = load_snapshot(snapshot_path)
-    age_minutes = snapshot_age_minutes(snapshot) if snapshot else None
-    is_fresh = snapshot is not None and age_minutes is not None and age_minutes <= max_age_minutes
+    cached_snapshot = load_snapshot(snapshot_path)
+    age_minutes = snapshot_age_minutes(cached_snapshot) if cached_snapshot else None
+    is_fresh = cached_snapshot is not None and age_minutes is not None and age_minutes <= max_age_minutes
+    cached_window_days = snapshot_issue_kpi_window_days(cached_snapshot)
+    window_matches = cached_window_days == recent_window_days
 
-    if refresh or not is_fresh:
+    snapshot: dict[str, Any] | None
+    if refresh or not is_fresh or not window_matches:
         snapshot = collect_live_snapshot(
             monitor_module,
             api_base=api_base,
             company_id=company_id,
             warning_minutes=warning_minutes,
             latency_warn_ms=latency_warn_ms,
+            recent_window_days=recent_window_days,
         )
+        snapshot = merge_snapshot_metadata(snapshot, cached_snapshot)
         age_minutes = snapshot_age_minutes(snapshot)
         if write_snapshot:
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
             snapshot_path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n")
         source = "live"
     else:
+        snapshot = cached_snapshot
         source = "cache"
+
+    if snapshot is None:
+        raise RuntimeError("Failed to resolve Hermes monitor snapshot")
 
     return SnapshotLoadResult(
         snapshot=snapshot,
@@ -121,24 +153,42 @@ def summarize_counts(snapshot: dict[str, Any], warning_minutes: int) -> dict[str
     gateways = snapshot.get("gateways", [])
     agents = snapshot.get("agents", [])
     stale_agents = 0
-    running_agents = 0
+    fresh_agents = 0
+    monitored_agents = 0
     for agent in agents:
-        if agent.get("status") == "running":
-            running_agents += 1
+        open_issues = int(agent.get("issueStats", {}).get("open", 0))
+        should_count = str(agent.get("status") or "") == "running" or open_issues > 0
+        if not should_count:
+            continue
+        monitored_agents += 1
         heartbeat_at = parse_iso_datetime(agent.get("lastHeartbeatAt"))
         if heartbeat_at is None:
             stale_agents += 1
             continue
         if datetime.now(timezone.utc) - heartbeat_at.astimezone(timezone.utc) > timedelta(minutes=warning_minutes):
             stale_agents += 1
-    total_open_issues = sum(int(agent.get("issueStats", {}).get("open", 0)) for agent in agents)
+        else:
+            fresh_agents += 1
+    unattributed_stats = snapshot.get("unattributedIssueStats", {})
+    unattributed_recent = snapshot.get("unattributedRecentIssueStats", {})
+    total_open_issues = sum(int(agent.get("issueStats", {}).get("open", 0)) for agent in agents) + int(
+        unattributed_stats.get("open", 0)
+    )
+    resolved_recent = sum(int(agent.get("recentIssueStats", {}).get("resolved", 0)) for agent in agents) + int(
+        unattributed_recent.get("resolved", 0)
+    )
+    failed_recent = sum(int(agent.get("recentIssueStats", {}).get("failed", 0)) for agent in agents) + int(
+        unattributed_recent.get("failed", 0)
+    )
     return {
         "running_gateways": sum(1 for gateway in gateways if gateway.get("state") == "running"),
         "total_gateways": len(gateways),
-        "running_agents": running_agents,
-        "total_agents": len(agents),
+        "fresh_agents": fresh_agents,
         "stale_agents": stale_agents,
+        "total_agents": monitored_agents,
         "open_issues": total_open_issues,
+        "recent_resolved": resolved_recent,
+        "recent_failed": failed_recent,
         "alerts": len(snapshot.get("alerts", [])),
     }
 
@@ -155,18 +205,40 @@ def build_agent_lines(snapshot: dict[str, Any]) -> list[str]:
     agents = sorted(snapshot.get("agents", []), key=lambda item: item.get("profile") or "")
     lines = ["agents:"]
     if not agents:
-        return lines + ["- none"]
-    for agent in agents:
-        stats = agent.get("issueStats", {})
+        lines.append("- none")
+    else:
+        for agent in agents:
+            stats = agent.get("issueStats", {})
+            recent = agent.get("recentIssueStats", {})
+            lines.append(
+                "- {profile:<12} {name:<16} status={status:<7} heartbeat={heartbeat:<8} open={open_issues:<2} blocked={blocked:<2} recent={resolved:<2} done={done:<2} failed={failed:<2} ratio={ratio}".format(
+                    profile=truncate(str(agent.get("profile") or "-"), 12),
+                    name=truncate(str(agent.get("name") or "-"), 16),
+                    status=truncate(str(agent.get("status") or "unknown"), 7),
+                    heartbeat=truncate(str(agent.get("heartbeatAge") or "unknown"), 8),
+                    open_issues=int(stats.get("open", 0)),
+                    blocked=int(stats.get("blocked", 0)),
+                    resolved=int(recent.get("resolved", 0)),
+                    done=int(recent.get("done", 0)),
+                    failed=int(recent.get("failed", 0)),
+                    ratio=f"{float(recent.get('doneRatio', 0.0)):.2f}/{float(recent.get('failedRatio', 0.0)):.2f}",
+                )
+            )
+    unattributed_stats = snapshot.get("unattributedIssueStats", {})
+    unattributed_recent = snapshot.get("unattributedRecentIssueStats", {})
+    if int(unattributed_stats.get("total", 0)) > 0 or int(unattributed_recent.get("resolved", 0)) > 0:
         lines.append(
-            "- {profile:<12} {name:<16} status={status:<7} heartbeat={heartbeat:<8} open={open_issues:<2} done={done:<2} cancelled={cancelled:<2}".format(
-                profile=truncate(str(agent.get("profile") or "-"), 12),
-                name=truncate(str(agent.get("name") or "-"), 16),
-                status=truncate(str(agent.get("status") or "unknown"), 7),
-                heartbeat=truncate(str(agent.get("heartbeatAge") or "unknown"), 8),
-                open_issues=int(stats.get("open", 0)),
-                done=int(stats.get("done", 0)),
-                cancelled=int(stats.get("cancelled", 0)),
+            "- {profile:<12} {name:<16} status={status:<7} heartbeat={heartbeat:<8} open={open_issues:<2} blocked={blocked:<2} recent={resolved:<2} done={done:<2} failed={failed:<2} ratio={ratio}".format(
+                profile=truncate("unattributed", 12),
+                name=truncate("paperclip", 16),
+                status=truncate("n/a", 7),
+                heartbeat=truncate("-", 8),
+                open_issues=int(unattributed_stats.get("open", 0)),
+                blocked=int(unattributed_stats.get("blocked", 0)),
+                resolved=int(unattributed_recent.get("resolved", 0)),
+                done=int(unattributed_recent.get("done", 0)),
+                failed=int(unattributed_recent.get("failed", 0)),
+                ratio=f"{float(unattributed_recent.get('doneRatio', 0.0)):.2f}/{float(unattributed_recent.get('failedRatio', 0.0)):.2f}",
             )
         )
     return lines
@@ -197,8 +269,9 @@ def build_profile_lines(snapshot: dict[str, Any]) -> list[str]:
         cron = cron_by_profile.get(profile, {})
         agent = agent_by_profile.get(profile, {})
         stats = agent.get("issueStats", {})
+        recent = agent.get("recentIssueStats", {})
         lines.append(
-            "- {profile:<12} gateway={gateway:<7} slack={slack:<7} cron={runs}/{success}/{failure} issues={open_issues}open/{done}done".format(
+            "- {profile:<12} gateway={gateway:<7} slack={slack:<7} cron={runs}/{success}/{failure} issues={open_issues}open/{blocked}blocked recent={done}/{failed}/{resolved}".format(
                 profile=truncate(str(profile or "-"), 12),
                 gateway=truncate(str(gateway.get("state") or "unknown"), 7),
                 slack=truncate(str(slack.get("status") or "unknown"), 7),
@@ -206,10 +279,39 @@ def build_profile_lines(snapshot: dict[str, Any]) -> list[str]:
                 success=int(cron.get("counts", {}).get("success", 0)),
                 failure=int(cron.get("counts", {}).get("failure", 0)),
                 open_issues=int(stats.get("open", 0)),
-                done=int(stats.get("done", 0)),
+                blocked=int(stats.get("blocked", 0)),
+                done=int(recent.get("done", 0)),
+                failed=int(recent.get("failed", 0)),
+                resolved=int(recent.get("resolved", 0)),
+            )
+        )
+    unattributed_stats = snapshot.get("unattributedIssueStats", {})
+    unattributed_recent = snapshot.get("unattributedRecentIssueStats", {})
+    if int(unattributed_stats.get("total", 0)) > 0 or int(unattributed_recent.get("resolved", 0)) > 0:
+        lines.append(
+            "- {profile:<12} gateway={gateway:<7} slack={slack:<7} cron={runs}/{success}/{failure} issues={open_issues}open/{blocked}blocked recent={done}/{failed}/{resolved}".format(
+                profile=truncate("unattributed", 12),
+                gateway=truncate("n/a", 7),
+                slack=truncate("n/a", 7),
+                runs=0,
+                success=0,
+                failure=0,
+                open_issues=int(unattributed_stats.get("open", 0)),
+                blocked=int(unattributed_stats.get("blocked", 0)),
+                done=int(unattributed_recent.get("done", 0)),
+                failed=int(unattributed_recent.get("failed", 0)),
+                resolved=int(unattributed_recent.get("resolved", 0)),
             )
         )
     return lines
+
+
+def build_notification_lines(snapshot: dict[str, Any]) -> list[str]:
+    notification = snapshot.get("notification")
+    lines = ["notification:"]
+    if not notification:
+        return lines + ["- none"]
+    return lines + [f"- sent={notification.get('sent')} message={notification.get('message')}"]
 
 
 def format_status_text(result: SnapshotLoadResult, warning_minutes: int) -> str:
@@ -218,6 +320,8 @@ def format_status_text(result: SnapshotLoadResult, warning_minutes: int) -> str:
     paperclip = snapshot.get("paperclipHealth", {})
     generated_at = snapshot.get("generatedAt", "unknown")
     age_text = "unknown" if result.age_minutes is None else f"{result.age_minutes:.1f}m"
+    kpi_window_days = int(snapshot.get("issueKpiWindowDays", 0))
+    failed_statuses = ",".join(snapshot.get("failedIssueStatuses", [])) or "-"
 
     lines = [
         f"generatedAt: {generated_at}",
@@ -226,14 +330,17 @@ def format_status_text(result: SnapshotLoadResult, warning_minutes: int) -> str:
             status=paperclip.get("status", "unknown"),
             latency=paperclip.get("latencyMs", "-"),
         ),
-        "summary: gateways={running_gateways}/{total_gateways} agents={running_agents}/{total_agents} stale_agents={stale_agents} open_issues={open_issues} alerts={alerts}".format(
+        "summary: gateways={running_gateways}/{total_gateways} fresh_agents={fresh_agents}/{total_agents} stale_agents={stale_agents} open_issues={open_issues} recent_resolved={recent_resolved} recent_failed={recent_failed} alerts={alerts}".format(
             **counts,
         ),
+        f"recent_issue_window: {kpi_window_days}d failed_statuses={failed_statuses}",
         "",
     ]
     lines.extend(build_agent_lines(snapshot))
     lines.append("")
     lines.extend(build_profile_lines(snapshot))
+    lines.append("")
+    lines.extend(build_notification_lines(snapshot))
     lines.append("")
     alerts = snapshot.get("alerts", [])
     if alerts:
@@ -278,6 +385,11 @@ def build_parser(monitor_module: Any) -> argparse.ArgumentParser:
         type=int,
         default=monitor_module.DEFAULT_LATENCY_WARN_MS,
     )
+    parser.add_argument(
+        "--recent-window-days",
+        type=int,
+        default=monitor_module.DEFAULT_RECENT_WINDOW_DAYS,
+    )
     return parser
 
 
@@ -296,6 +408,7 @@ def main() -> int:
         company_id=args.company_id,
         warning_minutes=args.warning_minutes,
         latency_warn_ms=args.latency_warn_ms,
+        recent_window_days=args.recent_window_days,
     )
 
     if args.json:

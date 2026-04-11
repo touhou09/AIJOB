@@ -1,6 +1,6 @@
 # 현재 프로젝트 상태
 
-> 최종 업데이트: 2026-04-10
+> 최종 업데이트: 2026-04-11
 
 ## 현재 상태
 - Hermes v0.8.0 + Paperclip + **7개 에이전트** 정상 가동 (CTO 신규 추가)
@@ -63,23 +63,29 @@ AIJOB/.claude/                         ← 템플릿 (git, source of truth)
 | hermes-updates | 매일 9AM KST | C0AQVFM1K1Q |
 | noon-ib-wsj | 매일 12PM KST | C0AQVFM1K1Q |
 
-## 활성 이슈 트리
+## 활성 이슈 트리 (2026-04-11 00:05 KST 기준)
 
 | 이슈 | 상태 | 담당 | 비고 |
 |------|------|------|------|
-| DOR-6 | in_progress | orchestrator | E2E-TEST 부모 (분배 완료, 하위 대기 중) |
-| DOR-8 | in_progress | team-backend | 프로필 편집 API (구 SOUL.md로 실행 중) |
-| DOR-9 | todo | team-frontend | 프로필 편집 UI |
-| DOR-10 | backlog | team-qa | E2E 검증 (backend/frontend 완료 후 orchestrator가 todo 전환 예정) |
+| DOR-5 | todo | team-backend | Hermes 모니터링 서비스 설계 (CTO 2차 리뷰 CHANGES_REQUESTED: "최근 처리 현황/done-failed 비율" 누락) |
+| DOR-13 | in_review | team-cto | 상태 수집기 + Slack 알림 (assignee 재할당 완료, 리뷰 대기) |
+| DOR-14 | in_review | team-cto | /hermes-status 통합 조회 인터페이스 (리뷰 대기) |
+| DOR-15 | in_review | team-cto | 모니터링 회귀 시나리오 (리뷰 대기) |
+
+완료: DOR-6 (E2E-TEST 부모), DOR-8 (API), DOR-9 (UI), DOR-10 (QA), DOR-16 (E2E-CTO).
 
 ## 알려진 이슈
 - Paperclip 서버가 `adapterConfig.cwd`를 확인 않고 fallback workspace warning 출력 — adapter 자체는 config.cwd 우선이지만 실제 Hermes subprocess cwd 검증 필요
 - Slack 봇 1개로 멀티 게이트웨이 불가 — 채널 분리 시 별도 앱 필요
+- engineer가 `in_review` 전환 시 `assigneeAgentId`를 비우고 `assigneeUserId`에 사용자를 남기는 경우 발생 — CTO 픽업 실패로 orphan. DOR-13/14/15에서 재현 확인, 수동 재할당으로 복구.
+- `scripts/hermes_monitor.py::parse_profiles()` 첫 글자 whitelist로 인한 프로필 누락 버그 — 알파벳 검사로 교체 (같은 버그를 DOR-5에서 backend 에이전트도 독립 수정 중)
 
 ## 다음 작업
-1. DOR-8/9/10 완료 후 orchestrator 종합 보고 동작 검증
-2. 코멘트 트리거 테스트 (done 이슈에 질문 코멘트 → wake 확인)
-3. 잘못된 담당자 지정 → 자동 재할당 테스트
-4. 기존 레거시 `AIJOB/profiles/` 삭제 (이번 커밋에 포함)
-5. init-mac.sh / init-linux.sh 에 Hermes 세팅 섹션 추가
-6. OpenClaw 완전 제거 판단
+1. DOR-13/14/15 CTO 리뷰 결과 확인 후 후속 조치
+2. DOR-5 CTO 재리뷰 사이클 모니터링 (backend 수정분과 내 hermes_monitor.py 수정이 중복 — 머지 충돌 여부 확인)
+3. in_review 전환 시 assignee 누락 방지 — engineer SOUL.md 또는 paperclip-policy에 체크 추가
+4. 코멘트 트리거 테스트 (done 이슈에 질문 코멘트 → wake 확인)
+5. 잘못된 담당자 지정 → 자동 재할당 테스트
+6. 기존 레거시 `AIJOB/profiles/` 삭제
+7. init-mac.sh / init-linux.sh 에 Hermes 세팅 섹션 추가
+8. OpenClaw 완전 제거 판단

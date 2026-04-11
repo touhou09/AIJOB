@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import argparse
 import glob
 import json
@@ -7,26 +9,46 @@ import re
 import subprocess
 import sys
 import time
-import urllib.error
 import urllib.request
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 DEFAULT_API_BASE = "http://localhost:3100/api"
 DEFAULT_COMPANY_ID = "abac28ea-9edd-4ddb-b40a-0baf52505357"
 DEFAULT_AGENT_WARNING_MINUTES = 30
 DEFAULT_LATENCY_WARN_MS = 1500
+DEFAULT_RECENT_WINDOW_DAYS = 7
+DEFAULT_COMMAND_TIMEOUT_SECONDS = 10
+FAILED_ISSUE_STATUSES = frozenset({"cancelled"})
+UNATTRIBUTED_ISSUE_BUCKET = "__unattributed__"
 
 
-def run(cmd):
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+def run(
+    cmd: str,
+    *,
+    timeout: int = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    errors: list[str] | None = None,
+    label: str | None = None,
+) -> str:
+    command_name = label or cmd
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if errors is not None:
+            errors.append(f"command timeout:{command_name} after {timeout}s")
+        return ""
     if result.returncode != 0:
+        if errors is not None:
+            raw_detail = (result.stderr or result.stdout or "unknown error").strip()
+            detail = raw_detail.splitlines()[0] if raw_detail else "unknown error"
+            errors.append(f"command failed:{command_name} rc={result.returncode} detail={detail}")
         return ""
     return result.stdout.strip()
 
 
-def iso_to_epoch(value):
+def iso_to_epoch(value: str | None) -> float | None:
     if not value:
         return None
     try:
@@ -35,7 +57,16 @@ def iso_to_epoch(value):
         return None
 
 
-def human_age(ts):
+def parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def human_age(ts: float | None) -> str:
     if ts is None:
         return "unknown"
     diff = max(0, int(time.time() - ts))
@@ -48,7 +79,7 @@ def human_age(ts):
     return f"{diff // 86400}d"
 
 
-def read_auth_token():
+def read_auth_token() -> str | None:
     path = os.path.expanduser("~/.paperclip/auth.json")
     if not os.path.exists(path):
         return None
@@ -57,51 +88,60 @@ def read_auth_token():
     creds = data.get("credentials", {})
     for base in ("http://localhost:3100", "https://paperclip.dororong.dev"):
         if base in creds and creds[base].get("token"):
-            return creds[base]["token"]
+            return str(creds[base]["token"])
     for info in creds.values():
         if info.get("token"):
-            return info["token"]
+            return str(info["token"])
     return None
 
 
-def http_json(url, token=None, timeout=5, method="GET", payload=None):
-    headers = {}
+def http_json(
+    url: str,
+    token: str | None = None,
+    timeout: int = 5,
+    method: str = "GET",
+    payload: dict[str, Any] | None = None,
+) -> tuple[Any, float]:
+    headers: dict[str, str] = {}
+    body: bytes | None = None
     if token:
         headers["Authorization"] = f"Bearer {token}"
     if payload is not None:
         headers["Content-Type"] = "application/json"
-        payload = json.dumps(payload).encode()
-    req = urllib.request.Request(url, headers=headers, method=method, data=payload)
+        body = json.dumps(payload).encode()
+    req = urllib.request.Request(url, headers=headers, method=method, data=body)
     started = time.perf_counter()
     with urllib.request.urlopen(req, timeout=timeout) as resp:
-        body = resp.read().decode()
+        raw_body = resp.read().decode()
     latency_ms = round((time.perf_counter() - started) * 1000, 1)
-    return json.loads(body), latency_ms
+    return json.loads(raw_body), latency_ms
 
 
-def parse_profiles():
-    text = run("hermes profile list")
-    profiles = []
+def parse_profiles(errors: list[str] | None = None) -> list[dict[str, str | None]]:
+    text = run("hermes profile list", errors=errors, label="hermes profile list")
+    profiles: list[dict[str, str | None]] = []
     for raw in text.splitlines():
-        line = raw.rstrip()
-        stripped = line.strip()
+        stripped = raw.strip()
         if not stripped or stripped.startswith("Profile") or stripped.startswith("─") or stripped.startswith("---"):
             continue
-        if stripped[0] not in {"◆", "default"[0], "b", "d", "f", "o", "q"}:
+        normalized = re.sub(r"^\s*◆?\s*", "", raw).rstrip()
+        columns = [part.strip() for part in re.split(r"\s{2,}", normalized) if part.strip()]
+        if len(columns) < 3:
             continue
-        parts = stripped.replace("◆", "").split()
-        if len(parts) < 3:
-            continue
-        name = parts[0]
-        gateway = parts[-2]
-        alias = parts[-1] if parts[-1] != "—" else None
-        profiles.append({"name": name, "gateway_cli": gateway, "alias": alias})
-    return [p for p in profiles if p["name"] != "default"]
+        if len(columns) >= 4:
+            name = columns[0]
+            gateway_cli = columns[-2]
+            alias_value = columns[-1]
+        else:
+            name, gateway_cli, alias_value = columns
+        alias = alias_value if alias_value != "—" else None
+        profiles.append({"name": name, "gateway_cli": gateway_cli, "alias": alias})
+    return [profile for profile in profiles if profile["name"] != "default"]
 
 
-def parse_launchctl():
-    text = run("launchctl list | grep hermes || true")
-    services = {}
+def parse_launchctl(errors: list[str] | None = None) -> dict[str, dict[str, str | None]]:
+    text = run("launchctl list", errors=errors, label="launchctl list")
+    services: dict[str, dict[str, str | None]] = {}
     for line in text.splitlines():
         parts = line.split()
         if len(parts) >= 3 and parts[2].startswith("ai.hermes.gateway-"):
@@ -111,7 +151,7 @@ def parse_launchctl():
     return services
 
 
-def tail_lines(path, limit=200):
+def tail_lines(path: str, limit: int = 200) -> list[str]:
     try:
         with open(path, errors="ignore") as f:
             lines = f.readlines()
@@ -120,35 +160,36 @@ def tail_lines(path, limit=200):
         return []
 
 
-def latest_slack_status(profile):
+def latest_slack_status(profile: str) -> dict[str, str | None]:
     base = os.path.expanduser(f"~/.hermes/profiles/{profile}/logs")
-    latest_ok = None
-    latest_error = None
+    latest_ok: dict[str, str | None] | None = None
+    latest_error: dict[str, str | None] | None = None
     ts_re = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
-    for path in sorted(glob.glob(os.path.join(base, "gateway.log*")), key=os.path.getmtime, reverse=True)[:4]:
+    paths = sorted(glob.glob(os.path.join(base, "gateway.log*")), key=os.path.getmtime, reverse=True)[:4]
+    for path in paths:
         for line in tail_lines(path, 400):
             lower = line.lower()
             if "slack" not in lower:
                 continue
-            m = ts_re.search(line)
-            ts = m.group(1) if m else ""
-            entry = {"line": line.strip(), "path": path, "timestamp": ts}
+            match = ts_re.search(line)
+            timestamp = match.group(1) if match else ""
+            entry = {"line": line.strip(), "path": path, "timestamp": timestamp}
             if any(token in lower for token in ["✓ slack connected", "socket mode connected", "bolt app is running", "a new session"]):
-                if latest_ok is None or entry["timestamp"] >= latest_ok["timestamp"]:
+                if latest_ok is None or timestamp >= str(latest_ok["timestamp"] or ""):
                     latest_ok = entry
             elif any(token in lower for token in ["failed", "error", "conflict", "already in use"]):
-                if latest_error is None or entry["timestamp"] >= latest_error["timestamp"]:
+                if latest_error is None or timestamp >= str(latest_error["timestamp"] or ""):
                     latest_error = entry
-    if latest_ok and (latest_error is None or latest_ok["timestamp"] >= latest_error["timestamp"]):
+    if latest_ok and (latest_error is None or str(latest_ok["timestamp"] or "") >= str(latest_error["timestamp"] or "")):
         return {"status": "ok", **latest_ok}
     if latest_error:
         return {"status": "error", **latest_error}
     return {"status": "unknown", "line": "no slack log found", "path": None, "timestamp": None}
 
 
-def cron_history(profile):
+def cron_history(profile: str) -> dict[str, Any]:
     counts = {"runs": 0, "success": 0, "failure": 0}
-    recent = []
+    recent: list[dict[str, str | None]] = []
     base = os.path.expanduser(f"~/.hermes/profiles/{profile}/logs")
     files = sorted(glob.glob(os.path.join(base, "agent.log*")), key=os.path.getmtime, reverse=True)[:6]
     ts_re = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
@@ -157,7 +198,7 @@ def cron_history(profile):
             if "cron.scheduler:" not in line:
                 continue
             lower = line.lower()
-            event = None
+            event: str | None = None
             if "running job" in lower:
                 counts["runs"] += 1
                 event = "run"
@@ -168,17 +209,19 @@ def cron_history(profile):
                 counts["failure"] += 1
                 event = "failure"
             if event:
-                m = ts_re.search(line)
-                recent.append({
-                    "event": event,
-                    "timestamp": m.group(1) if m else None,
-                    "message": line.strip(),
-                })
-    recent = sorted(recent, key=lambda x: x.get("timestamp") or "", reverse=True)[:10]
+                match = ts_re.search(line)
+                recent.append(
+                    {
+                        "event": event,
+                        "timestamp": match.group(1) if match else None,
+                        "message": line.strip(),
+                    }
+                )
+    recent = sorted(recent, key=lambda item: str(item.get("timestamp") or ""), reverse=True)[:10]
     return {"counts": counts, "recent": recent}
 
 
-def map_agent_profile(agent_name):
+def map_agent_profile(agent_name: str) -> str:
     if agent_name == "orchestrator":
         return "orchestrator"
     if agent_name.startswith("team-"):
@@ -186,32 +229,123 @@ def map_agent_profile(agent_name):
     return agent_name
 
 
-def collect_snapshot(api_base, company_id, token, warning_minutes, latency_warn_ms):
-    snapshot = {
+def build_empty_issue_stats() -> dict[str, int]:
+    return {"done": 0, "cancelled": 0, "blocked": 0, "open": 0, "total": 0}
+
+
+def build_empty_recent_issue_stats(window_days: int, window_start: datetime) -> dict[str, Any]:
+    return {
+        "windowDays": window_days,
+        "windowStart": window_start.isoformat(),
+        "resolved": 0,
+        "done": 0,
+        "failed": 0,
+        "doneRatio": 0.0,
+        "failedRatio": 0.0,
+        "failedStatuses": sorted(FAILED_ISSUE_STATUSES),
+    }
+
+
+def issue_bucket_key(issue: dict[str, Any]) -> str:
+    agent_id = issue.get("assigneeAgentId")
+    if agent_id:
+        return str(agent_id)
+    return UNATTRIBUTED_ISSUE_BUCKET
+
+
+def should_ignore_issue(issue: dict[str, Any]) -> bool:
+    title = str(issue.get("title") or "")
+    return title.lower().startswith("[ignore]")
+
+
+def issue_activity_at(issue: dict[str, Any]) -> datetime | None:
+    status = str(issue.get("status") or "")
+    for key in (
+        "completedAt" if status == "done" else None,
+        "cancelledAt" if status == "cancelled" else None,
+        "updatedAt",
+        "createdAt",
+    ):
+        if key is None:
+            continue
+        parsed = parse_iso_datetime(issue.get(key))
+        if parsed is not None:
+            return parsed.astimezone(timezone.utc)
+    return None
+
+
+def build_recent_issue_stats(issues: list[dict[str, Any]], window_days: int) -> dict[str, dict[str, Any]]:
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(days=window_days)
+    by_agent: dict[str, dict[str, Any]] = defaultdict(
+        lambda: build_empty_recent_issue_stats(window_days, window_start)
+    )
+    for issue in issues:
+        if should_ignore_issue(issue):
+            continue
+        status = str(issue.get("status") or "")
+        if status != "done" and status not in FAILED_ISSUE_STATUSES:
+            continue
+        activity_at = issue_activity_at(issue)
+        if activity_at is None or activity_at < window_start:
+            continue
+        bucket = by_agent[issue_bucket_key(issue)]
+        bucket["resolved"] += 1
+        if status == "done":
+            bucket["done"] += 1
+        else:
+            bucket["failed"] += 1
+    for bucket in by_agent.values():
+        resolved = int(bucket["resolved"])
+        if resolved > 0:
+            bucket["doneRatio"] = round(int(bucket["done"]) / resolved, 3)
+            bucket["failedRatio"] = round(int(bucket["failed"]) / resolved, 3)
+    return dict(by_agent)
+
+
+def collect_snapshot(
+    api_base: str,
+    company_id: str,
+    token: str | None,
+    warning_minutes: int,
+    latency_warn_ms: int,
+    recent_window_days: int = DEFAULT_RECENT_WINDOW_DAYS,
+) -> dict[str, Any]:
+    snapshot: dict[str, Any] = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "apiBase": api_base,
         "companyId": company_id,
         "alerts": [],
+        "issueKpiWindowDays": recent_window_days,
+        "failedIssueStatuses": sorted(FAILED_ISSUE_STATUSES),
     }
 
-    profiles = parse_profiles()
-    services = parse_launchctl()
+    profiles = parse_profiles(snapshot["alerts"])
+    launchctl_alerts_before = len(snapshot["alerts"])
+    services = parse_launchctl(snapshot["alerts"])
+    launchctl_failed = any(
+        alert.startswith(("command failed:launchctl list", "command timeout:launchctl list"))
+        for alert in snapshot["alerts"][launchctl_alerts_before:]
+    )
     snapshot["gateways"] = []
-    for profile in profiles:
-        label = f"ai.hermes.gateway-{profile['name']}"
+    for profile_info in profiles:
+        label = f"ai.hermes.gateway-{profile_info['name']}"
         svc = services.get(label)
-        state = "running" if svc and svc.get("pid") else "missing"
-        item = {
-            "profile": profile["name"],
-            "gatewayCli": profile["gateway_cli"],
+        if launchctl_failed:
+            state = "unknown"
+        else:
+            state = "running" if svc and svc.get("pid") else "missing"
+        gateway_item = {
+            "profile": profile_info['name'],
+            "gatewayCli": profile_info['gateway_cli'],
             "label": label,
             "state": state,
-            "pid": svc.get("pid") if svc else None,
-            "lastExitStatus": svc.get("last_exit_status") if svc else None,
+            "pid": svc.get('pid') if svc else None,
+            "lastExitStatus": svc.get('last_exit_status') if svc else None,
         }
-        if state != "running":
-            snapshot["alerts"].append(f"gateway:{profile['name']} missing")
-        snapshot["gateways"].append(item)
+        if state == "missing":
+            snapshot["alerts"].append(f"gateway:{profile_info['name']} missing")
+        snapshot["gateways"].append(gateway_item)
 
     try:
         health, latency_ms = http_json(f"{api_base}/health", timeout=3)
@@ -222,56 +356,87 @@ def collect_snapshot(api_base, company_id, token, warning_minutes, latency_warn_
         snapshot["paperclipHealth"] = {"status": "error", "error": str(exc)}
         snapshot["alerts"].append(f"paperclip health check failed: {exc}")
 
-    agents = []
-    issues = []
+    agents: list[dict[str, Any]] = []
+    issues: list[dict[str, Any]] = []
     if token:
         try:
-            agents, _ = http_json(f"{api_base}/companies/{company_id}/agents", token=token)
+            agents_result, _ = http_json(f"{api_base}/companies/{company_id}/agents", token=token)
+            agents = list(agents_result)
         except Exception as exc:
             snapshot["alerts"].append(f"paperclip agents fetch failed: {exc}")
         try:
-            issues, _ = http_json(f"{api_base}/companies/{company_id}/issues", token=token)
+            issues_result, _ = http_json(f"{api_base}/companies/{company_id}/issues", token=token)
+            issues = list(issues_result)
         except Exception as exc:
             snapshot["alerts"].append(f"paperclip issues fetch failed: {exc}")
     else:
         snapshot["alerts"].append("paperclip token missing")
 
-    issue_stats = defaultdict(lambda: {"done": 0, "cancelled": 0, "open": 0, "total": 0})
+    issue_stats: dict[str, dict[str, int]] = defaultdict(build_empty_issue_stats)
     for issue in issues:
-        aid = issue.get("assigneeAgentId")
-        if not aid:
+        if should_ignore_issue(issue):
             continue
-        bucket = issue_stats[aid]
+        bucket = issue_stats[issue_bucket_key(issue)]
         bucket["total"] += 1
-        status = issue.get("status")
+        status = str(issue.get("status") or "")
         if status == "done":
             bucket["done"] += 1
         elif status == "cancelled":
             bucket["cancelled"] += 1
+        elif status == "blocked":
+            bucket["blocked"] += 1
+            bucket["open"] += 1
         else:
             bucket["open"] += 1
+
+    recent_issue_stats = build_recent_issue_stats(issues, recent_window_days)
+    window_start = datetime.now(timezone.utc) - timedelta(days=recent_window_days)
 
     snapshot["agents"] = []
     stale_cutoff = warning_minutes * 60
     for agent in agents:
-        hb_ts = iso_to_epoch(agent.get("lastHeartbeatAt"))
-        profile = map_agent_profile(agent.get("name", ""))
-        stats = issue_stats[agent["id"]]
-        item = {
+        heartbeat_ts = iso_to_epoch(agent.get("lastHeartbeatAt"))
+        profile = map_agent_profile(str(agent.get("name") or ""))
+        stats = issue_stats[str(agent["id"])]
+        recent_stats = recent_issue_stats.get(
+            str(agent["id"]),
+            build_empty_recent_issue_stats(recent_window_days, window_start),
+        )
+        agent_item: dict[str, Any] = {
             "name": agent.get("name"),
             "role": agent.get("role"),
             "status": agent.get("status"),
             "profile": profile,
             "lastHeartbeatAt": agent.get("lastHeartbeatAt"),
-            "heartbeatAge": human_age(hb_ts),
+            "heartbeatAge": human_age(heartbeat_ts),
             "issueStats": stats,
+            "recentIssueStats": recent_stats,
         }
-        if hb_ts is None or time.time() - hb_ts > stale_cutoff:
-            snapshot["alerts"].append(f"heartbeat stale:{agent.get('name')} age={item['heartbeatAge']}")
-        snapshot["agents"].append(item)
+        should_alert_stale = str(agent.get("status") or "") == "running" or int(stats.get("open", 0)) > 0
+        if should_alert_stale and (heartbeat_ts is None or time.time() - heartbeat_ts > stale_cutoff):
+            snapshot["alerts"].append(f"heartbeat stale:{agent.get('name')} age={agent_item['heartbeatAge']}")
+        snapshot["agents"].append(agent_item)
 
-    cron_status_text = run("hermes cron status")
-    cron_list_text = run("hermes cron list")
+    snapshot["unattributedIssueStats"] = issue_stats.get(UNATTRIBUTED_ISSUE_BUCKET, build_empty_issue_stats())
+    snapshot["unattributedRecentIssueStats"] = recent_issue_stats.get(
+        UNATTRIBUTED_ISSUE_BUCKET,
+        build_empty_recent_issue_stats(recent_window_days, window_start),
+    )
+    snapshot["issueTotals"] = build_empty_issue_stats()
+    for bucket in issue_stats.values():
+        for key in snapshot["issueTotals"]:
+            snapshot["issueTotals"][key] += int(bucket.get(key, 0))
+    snapshot["recentIssueTotals"] = build_empty_recent_issue_stats(recent_window_days, window_start)
+    for bucket in recent_issue_stats.values():
+        for key in ("resolved", "done", "failed"):
+            snapshot["recentIssueTotals"][key] += int(bucket.get(key, 0))
+    total_resolved = int(snapshot["recentIssueTotals"]["resolved"])
+    if total_resolved > 0:
+        snapshot["recentIssueTotals"]["doneRatio"] = round(int(snapshot["recentIssueTotals"]["done"]) / total_resolved, 3)
+        snapshot["recentIssueTotals"]["failedRatio"] = round(int(snapshot["recentIssueTotals"]["failed"]) / total_resolved, 3)
+
+    cron_status_text = run("hermes cron status", errors=snapshot["alerts"], label="hermes cron status")
+    cron_list_text = run("hermes cron list", errors=snapshot["alerts"], label="hermes cron list")
     snapshot["cron"] = {
         "scheduler": cron_status_text or "unknown",
         "configuredJobs": cron_list_text,
@@ -283,12 +448,12 @@ def collect_snapshot(api_base, company_id, token, warning_minutes, latency_warn_
 
     snapshot["slack"] = []
     for gateway in snapshot["gateways"]:
-        profile = gateway["profile"]
+        profile = str(gateway["profile"])
         cron = cron_history(profile)
         slack = latest_slack_status(profile)
         snapshot["cron"]["profiles"].append({"profile": profile, **cron})
         snapshot["slack"].append({"profile": profile, **slack})
-        if cron["counts"]["failure"] > 0:
+        if int(cron["counts"]["failure"]) > 0:
             snapshot["alerts"].append(f"cron failure detected:{profile}")
         if slack["status"] == "error":
             snapshot["alerts"].append(f"slack degraded:{profile}")
@@ -297,9 +462,8 @@ def collect_snapshot(api_base, company_id, token, warning_minutes, latency_warn_
     return snapshot
 
 
-def format_text(snapshot):
-    lines = []
-    lines.append(f"generatedAt: {snapshot['generatedAt']}")
+def format_text(snapshot: dict[str, Any]) -> str:
+    lines = [f"generatedAt: {snapshot['generatedAt']}"]
     paperclip = snapshot.get("paperclipHealth", {})
     if paperclip.get("status") == "ok":
         lines.append(f"paperclip: ok ({paperclip.get('latencyMs')}ms)")
@@ -313,19 +477,52 @@ def format_text(snapshot):
     lines.append("agents:")
     for item in snapshot.get("agents", []):
         stats = item["issueStats"]
+        recent = item.get("recentIssueStats", {})
         lines.append(
-            f"- {item['name']}: status={item['status']} heartbeat={item['heartbeatAge']} done={stats['done']} cancelled={stats['cancelled']} open={stats['open']}"
+            "- {name}: status={status} heartbeat={heartbeat} open={open_issues} total_done={done} total_cancelled={cancelled} recent_done={recent_done}/{recent_resolved} recent_failed={recent_failed} done_ratio={done_ratio:.3f}".format(
+                name=item["name"],
+                status=item["status"],
+                heartbeat=item["heartbeatAge"],
+                open_issues=stats["open"],
+                done=stats["done"],
+                cancelled=stats["cancelled"],
+                recent_done=int(recent.get("done", 0)),
+                recent_resolved=int(recent.get("resolved", 0)),
+                recent_failed=int(recent.get("failed", 0)),
+                done_ratio=float(recent.get("doneRatio", 0.0)),
+            )
+        )
+    unattributed_stats = snapshot.get("unattributedIssueStats", {})
+    unattributed_recent = snapshot.get("unattributedRecentIssueStats", {})
+    if int(unattributed_stats.get("total", 0)) > 0 or int(unattributed_recent.get("resolved", 0)) > 0:
+        lines.append(
+            "- unattributed: status=unknown heartbeat=- open={open_issues} total_done={done} total_cancelled={cancelled} recent_done={recent_done}/{recent_resolved} recent_failed={recent_failed} done_ratio={done_ratio:.3f}".format(
+                open_issues=int(unattributed_stats.get("open", 0)),
+                done=int(unattributed_stats.get("done", 0)),
+                cancelled=int(unattributed_stats.get("cancelled", 0)),
+                recent_done=int(unattributed_recent.get("done", 0)),
+                recent_resolved=int(unattributed_recent.get("resolved", 0)),
+                recent_failed=int(unattributed_recent.get("failed", 0)),
+                done_ratio=float(unattributed_recent.get("doneRatio", 0.0)),
+            )
         )
     lines.append("")
     lines.append("cron/slack:")
-    cron_by_profile = {c['profile']: c for c in snapshot.get('cron', {}).get('profiles', [])}
-    slack_by_profile = {s['profile']: s for s in snapshot.get('slack', [])}
+    cron_by_profile = {c["profile"]: c for c in snapshot.get("cron", {}).get("profiles", [])}
+    slack_by_profile = {s["profile"]: s for s in snapshot.get("slack", [])}
     for profile in sorted(cron_by_profile):
         cron = cron_by_profile[profile]
         slack = slack_by_profile.get(profile, {})
         lines.append(
             f"- {profile}: cron runs={cron['counts']['runs']} success={cron['counts']['success']} failure={cron['counts']['failure']} | slack={slack.get('status')}"
         )
+    lines.append("")
+    notification = snapshot.get("notification")
+    lines.append("notification:")
+    if notification:
+        lines.append(f"- sent={notification.get('sent')} message={notification.get('message')}")
+    else:
+        lines.append("- none")
     lines.append("")
     if snapshot.get("alerts"):
         lines.append("alerts:")
@@ -336,10 +533,10 @@ def format_text(snapshot):
     return "\n".join(lines)
 
 
-def send_slack(webhook_url, snapshot):
+def send_slack(webhook_url: str | None, snapshot: dict[str, Any]) -> tuple[bool, str]:
     if not webhook_url or not snapshot.get("alerts"):
         return False, "skipped"
-    text = "[hermes-monitor] 이상 감지\n" + "\n".join(f"• {a}" for a in snapshot["alerts"][:20])
+    text = "[hermes-monitor] 이상 감지\n" + "\n".join(f"• {alert}" for alert in snapshot["alerts"][:20])
     data = json.dumps({"text": text}).encode()
     req = urllib.request.Request(webhook_url, data=data, headers={"Content-Type": "application/json"}, method="POST")
     with urllib.request.urlopen(req, timeout=5) as resp:
@@ -347,7 +544,7 @@ def send_slack(webhook_url, snapshot):
     return True, body
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description="Collect Hermes/Paperclip monitoring snapshot")
     parser.add_argument("--json", action="store_true", help="Print JSON snapshot")
     parser.add_argument("--write-snapshot", help="Write JSON snapshot to file")
@@ -357,10 +554,18 @@ def main():
     parser.add_argument("--company-id", default=DEFAULT_COMPANY_ID)
     parser.add_argument("--warning-minutes", type=int, default=DEFAULT_AGENT_WARNING_MINUTES)
     parser.add_argument("--latency-warn-ms", type=int, default=DEFAULT_LATENCY_WARN_MS)
+    parser.add_argument("--recent-window-days", type=int, default=DEFAULT_RECENT_WINDOW_DAYS)
     args = parser.parse_args()
 
     token = read_auth_token()
-    snapshot = collect_snapshot(args.api_base, args.company_id, token, args.warning_minutes, args.latency_warn_ms)
+    snapshot = collect_snapshot(
+        args.api_base,
+        args.company_id,
+        token,
+        args.warning_minutes,
+        args.latency_warn_ms,
+        args.recent_window_days,
+    )
 
     if args.notify:
         try:
