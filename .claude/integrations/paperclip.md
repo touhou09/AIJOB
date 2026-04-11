@@ -20,6 +20,12 @@
 - ID: `abac28ea-9edd-4ddb-b40a-0baf52505357`
 - Name: dororong (prefix: DOR)
 
+## Projects
+- `AIJOB` (`urlKey=aijob`) — 템플릿, agent harness, 운영 규정, Paperclip 체계 자체 변경
+- `Hermes Infra` (`urlKey=hermes-infra`) — Hermes gateway, Paperclip 운영, 모니터링, `/hermes-status`
+- `AivaLink` (`urlKey=aivalink`) — 제품 기능/API/UI/E2E 워크스트림
+- 신규 이슈는 생성 전에 project를 조회하고 `projectId`를 반드시 지정한다.
+
 ## 에이전트 관리
 ```bash
 npx paperclipai agent list
@@ -27,6 +33,7 @@ npx paperclipai issue create --company-id <id> --title "..." --description "..."
 npx paperclipai issue list
 npx paperclipai issue get DOR-N
 npx paperclipai issue update <id> --status done
+npx paperclipai api get /companies/<id>/projects
 ```
 
 ## Adapter

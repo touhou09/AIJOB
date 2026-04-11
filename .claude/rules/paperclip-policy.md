@@ -76,10 +76,21 @@ todo ─→ in_progress ─→ in_review ─→ done
 |------|---|
 | title | 동사로 시작, 60자 이내 ("XXX 구현", "YYY 버그 수정") |
 | description | 아래 템플릿 필수 |
+| projectId | 프로젝트 워크스트림 ID 필수 (`/api/companies/{id}/projects` 조회 후 지정) |
 | status | `"todo"` (backlog 금지) |
 | assigneeAgentId | 역할에 맞는 에이전트 (모르면 orchestrator) |
 | priority | `low` / `medium` / `high` (기본 medium) |
 | parentId | 하위 이슈인 경우 부모 ID |
+
+### projectId 분류 규칙
+- 워크스트림 기준으로 분류한다. 기능/인프라/운영 주체가 다른 이슈를 같은 project에 섞지 않는다.
+- 현재 기본 분류:
+  - `AIJOB` (`urlKey=aijob`): 템플릿/운영 규정/agent harness/Paperclip 운영 체계 자체 변경
+  - `Hermes Infra` (`urlKey=hermes-infra`): gateway, Paperclip, 모니터링, `/hermes-status`, 런타임 운영 변경
+  - `AivaLink` (`urlKey=aivalink`): AivaLink 제품 기능/API/UI/E2E
+- 새 워크스트림이 생기면 먼저 project를 생성하고, 그 다음 이슈를 만든다.
+- parent/child 이슈는 특별한 예외가 없으면 같은 projectId를 유지한다.
+- project가 미정이면 이슈 생성 전에 orchestrator에게 project 생성/분류부터 요청한다. `projectId` 없는 신규 이슈 생성은 금지.
 
 ### description 템플릿
 ```markdown
@@ -184,6 +195,8 @@ adapter가 이슈 코멘트를 감지하면 해당 에이전트를 wake한다. w
 | 이슈 조회 | `/api/issues/{id}` | GET |
 | 이슈 업데이트 | `/api/issues/{id}` | PATCH |
 | 이슈 생성 | `/api/companies/{companyId}/issues` | POST |
+| 프로젝트 목록 | `/api/companies/{companyId}/projects` | GET |
+| 프로젝트 생성 | `/api/companies/{companyId}/projects` | POST |
 | 코멘트 조회 | `/api/issues/{id}/comments` | GET |
 | 코멘트 작성 | `/api/issues/{id}/comments` | POST |
 | 내 이슈 목록 | `/api/companies/{companyId}/issues?assigneeAgentId={id}` | GET |

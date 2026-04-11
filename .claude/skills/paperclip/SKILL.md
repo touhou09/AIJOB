@@ -19,6 +19,7 @@ npx paperclipai issue list
 ```bash
 npx paperclipai issue create \
   --company-id abac28ea-9edd-4ddb-b40a-0baf52505357 \
+  --project-id [프로젝트ID] \
   --title "[제목]" \
   --description "[설명]" \
   --assignee-agent-id [에이전트ID] \

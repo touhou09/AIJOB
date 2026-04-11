@@ -74,3 +74,18 @@
 - **Test**: orchestrator E2E(DOR-6) — 복합 이슈 1개 → 3개 하위 이슈(DOR-8/9/10) 자동 분해 + 도메인별 정확한 에이전트 배정 + parentId 연결 + 분배 보고 코멘트 + 의존성 인식(DOR-10 backlog 유지). orchestrator "본인 구현 금지" 원칙 준수
 - **Trap**: 초기 오해 — Codex CLI의 AGENTS.md 규약과 Hermes 네이티브 AGENTS.md를 혼동. Hermes는 openai-codex provider를 쓰지만 Codex CLI subprocess가 아니라 `https://chatgpt.com/backend-api/codex` HTTP API 직접 호출. AGENTS.md는 Hermes 자체 `build_context_files_prompt()` 기능. 웹 서치로 정정 후 설계 재조정 / adapter promptTemplate 커스터마이징 제안 → 업데이트 호환성 논의 끝에 SOUL/AGENTS.md 파일 기반 전환(adapter 무관)
 - **[DEBT]**: Paperclip 서버가 `adapterConfig.cwd`를 확인 않고 자체 fallback workspace 결정 → adapter는 config.cwd 우선이지만 Paperclip warning 로그 혼란. Hermes subprocess 실제 cwd 검증 필요. DOR-8 등 진행 중 이슈 완료 후 pwd 결과로 확정 가능
+
+---
+
+## 2026-04-11: Paperclip project 워크스트림 초기화와 issue backfill [done]
+- **What**: Paperclip에 `AIJOB`, `Hermes Infra`, `AivaLink` project를 생성하고 기존 DOR 이슈들의 `projectId`를 워크스트림 기준으로 backfill했다. 동시에 이슈 생성 규칙/공통 AGENTS/paperclip integration 문서에 `projectId 필수` 규칙을 반영하고 런타임 프로필로 sync했다.
+- **Why**: 단일 company 아래 모든 이슈가 섞이면 워크스트림별 필터/집계/lead ownership이 불가능하다. company 분리를 피하면서도 운영 구분을 강제하려면 projectId를 source of truth로 만들어야 했다.
+- **Impact**: DOR-5/13/14/15는 `Hermes Infra`, DOR-18/19는 `AIJOB`, DOR-6/8/9/10은 `AivaLink`로 즉시 구분된다. 이후 신규 이슈도 project 없는 생성이 규정 위반으로 간주된다.
+- **Test**: `POST /api/companies/{companyId}/projects` 3회 201 확인; `PATCH /api/issues/{id}`로 DOR-1~20(취소 제외) projectId 반영; `GET /api/companies/{companyId}/issues` 재조회로 DOR-5/13/14/15/18/19/20 및 AivaLink 이슈군 projectId 확인; `bash ~/.claude/hooks/hermes-profile-sync.sh` 성공
+---
+
+## 2026-04-11: /hermes-status project 집계/필터 지원 [done]
+- **What**: `scripts/hermes_monitor.py`가 Paperclip project 목록과 issue의 `projectId`를 함께 수집해 project별 open/done/blocked/recent KPI를 스냅샷에 저장하고, `scripts/hermes_status.py`에 `projects:` 섹션과 `--project <id|name|urlKey|unassigned>` 필터를 추가했다.
+- **Why**: DOR-18의 project 그룹핑이 적용된 뒤에도 운영자는 전체 합계만 볼 수 있었고 project별 open/done 현황을 다시 API로 따로 조회해야 했다. `/hermes-status`에서 같은 스냅샷으로 project 단위 가시성을 바로 제공해야 운영 흐름이 닫힌다.
+- **Impact**: `python3 scripts/hermes_status.py --refresh`만으로 AIJOB/AivaLink/Hermes Infra별 backlog와 최근 처리량을 즉시 확인할 수 있고, 특정 워크스트림만 보고 싶을 때 `--project aijob`처럼 필터링 가능하다.
+- **Test**: `python3 -m py_compile scripts/hermes_monitor.py scripts/hermes_status.py tests/test_hermes_monitor.py tests/test_hermes_status.py`; `python3 -m unittest tests.test_hermes_monitor tests.test_hermes_status -v`; `python3 scripts/hermes_status.py --refresh`; `python3 scripts/hermes_status.py --refresh --project aijob --json`

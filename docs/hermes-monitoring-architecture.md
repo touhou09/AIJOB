@@ -47,9 +47,10 @@ Hermes 6개 프로필, Paperclip, Slack, cron을 한 번에 점검하는 경량 
 1. 최신 스냅샷이 15분 이내이고 요청한 recent KPI window와 cache의 `issueKpiWindowDays` 가 같으면 그대로 출력
 2. 스냅샷이 없거나 오래됐거나 KPI window 요청이 다르면 내부적으로 live 수집 후 스냅샷을 갱신하되 마지막 Slack `notification` 결과를 유지
 3. 에이전트별 heartbeat/open issue, 최근 window의 resolved/done/failed ratio, profile별 gateway/slack/cron 상태를 통합 요약
-4. assignee가 비어 있는 종결 이슈도 `unattributed` bucket으로 보존해 recent resolved/failed 총량이 Paperclip 데이터와 일치하도록 유지한다
-5. `failed`는 종결 상태 중 `cancelled` 만 포함하고, `blocked` 는 open backlog로 별도 표시한다
-6. 필요 시 원시 명령(`launchctl`, `hermes cron list`, Paperclip health)로 drill-down
+4. Paperclip `projects` 엔드포인트를 함께 읽어 project별 open/done/blocked/최근 resolved 집계를 별도 섹션으로 출력하고 `--project <id|name|urlKey|unassigned>` 필터를 지원한다
+5. assignee가 비어 있는 종결 이슈도 `unattributed` bucket으로 보존해 recent resolved/failed 총량이 Paperclip 데이터와 일치하도록 유지한다
+6. `failed`는 종결 상태 중 `cancelled` 만 포함하고, `blocked` 는 open backlog로 별도 표시한다
+7. 필요 시 원시 명령(`launchctl`, `hermes cron list`, Paperclip health)로 drill-down
 
 ## 데이터 흐름
 1. launchd 또는 cron이 `scripts/hermes_monitor.py` 실행

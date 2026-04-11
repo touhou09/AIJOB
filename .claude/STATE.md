@@ -11,7 +11,9 @@
 - backend만 Slack 연결, 나머지 6개는 cron/heartbeat 전용 (Socket Mode 충돌 해결)
 - Hermes 모니터 수집기 + launchd plist 예제가 저장소에 정착, 스냅샷에 Slack 배달 결과까지 기록
 - `/hermes-status` 조회 인터페이스 추가: 캐시 재사용 + stale 시 live refresh + agent/profile별 통합 요약 지원
+- [auto] `/hermes-status`가 Paperclip project별 open/done/blocked/recent KPI를 표시하고 `--project` 필터로 워크스트림 단위 조회를 지원
 - Paperclip 외부 접속 정상화 (cloudflared 커넥터 단일화)
+- Paperclip project 3종(`AIJOB`, `Hermes Infra`, `AivaLink`) 생성 완료, 기존 DOR 이슈 projectId backfill 및 생성 규칙 반영 완료
 
 ## 인프라 현황
 
@@ -63,16 +65,22 @@ AIJOB/.claude/                         ← 템플릿 (git, source of truth)
 | hermes-updates | 매일 9AM KST | C0AQVFM1K1Q |
 | noon-ib-wsj | 매일 12PM KST | C0AQVFM1K1Q |
 
-## 활성 이슈 트리 (2026-04-11 00:05 KST 기준)
+## Paperclip Projects
 
-| 이슈 | 상태 | 담당 | 비고 |
-|------|------|------|------|
-| DOR-5 | todo | team-backend | Hermes 모니터링 서비스 설계 (CTO 2차 리뷰 CHANGES_REQUESTED: "최근 처리 현황/done-failed 비율" 누락) |
-| DOR-13 | in_review | team-cto | 상태 수집기 + Slack 알림 (assignee 재할당 완료, 리뷰 대기) |
-| DOR-14 | in_review | team-cto | /hermes-status 통합 조회 인터페이스 (리뷰 대기) |
-| DOR-15 | in_review | team-cto | 모니터링 회귀 시나리오 (리뷰 대기) |
+| 이름 | urlKey | 범위 |
+|------|--------|------|
+| AIJOB | `aijob` | 템플릿 / 운영 규정 / agent harness / Paperclip 운영 체계 자체 변경 |
+| Hermes Infra | `hermes-infra` | gateway, Paperclip, 모니터링, `/hermes-status`, 런타임 운영 변경 |
+| AivaLink | `aivalink` | AivaLink 제품 기능 / API / UI / E2E |
 
-완료: DOR-6 (E2E-TEST 부모), DOR-8 (API), DOR-9 (UI), DOR-10 (QA), DOR-16 (E2E-CTO).
+## 활성 이슈 (2026-04-11 09:30 KST 기준)
+
+| 이슈 | 프로젝트 | 상태 | 담당 | 비고 |
+|------|---------|------|------|------|
+| DOR-5 | hermes-infra | in_review | user | CTO 리뷰 후 user 반려 상태, DOR-17에서 설계 재검토 중 |
+| DOR-17 | hermes-infra | todo | orchestrator | DOR-5 설계 기대치 gap 수집 (사용자 구조 피드백 대기) |
+
+완료: DOR-13/14/15 (monitor 구축), DOR-18/19/20 (Paperclip projects 도입 + backfill + `/hermes-status --project` 필터), 기존 DOR-6/8/9/10/16 등 harness E2E.
 
 ## 알려진 이슈
 - Paperclip 서버가 `adapterConfig.cwd`를 확인 않고 fallback workspace warning 출력 — adapter 자체는 config.cwd 우선이지만 실제 Hermes subprocess cwd 검증 필요
@@ -81,11 +89,11 @@ AIJOB/.claude/                         ← 템플릿 (git, source of truth)
 - `scripts/hermes_monitor.py::parse_profiles()` 첫 글자 whitelist로 인한 프로필 누락 버그 — 알파벳 검사로 교체 (같은 버그를 DOR-5에서 backend 에이전트도 독립 수정 중)
 
 ## 다음 작업
-1. DOR-13/14/15 CTO 리뷰 결과 확인 후 후속 조치
-2. DOR-5 CTO 재리뷰 사이클 모니터링 (backend 수정분과 내 hermes_monitor.py 수정이 중복 — 머지 충돌 여부 확인)
-3. in_review 전환 시 assignee 누락 방지 — engineer SOUL.md 또는 paperclip-policy에 체크 추가
-4. 코멘트 트리거 테스트 (done 이슈에 질문 코멘트 → wake 확인)
-5. 잘못된 담당자 지정 → 자동 재할당 테스트
+1. DOR-17 (DOR-5 설계 재검토): 사용자가 기대한 모니터링 구조 항목화 → gap 리스트 → 수용/변경/기각 분류
+2. RFC paperclipai/paperclip#175 `worktreeIsolation` 머지 감시 + `hermes-paperclip-adapter` 업그레이드 추적
+3. Paperclip project별 `workspaceStrategy.provisionCommand` 설정 검토 (per-이슈 worktree 초기화)
+4. in_review 전환 시 assignee 누락 방지 — engineer SOUL.md 또는 paperclip-policy에 체크 추가
+5. 코멘트 트리거 테스트 (done 이슈에 질문 코멘트 → wake 확인)
 6. 기존 레거시 `AIJOB/profiles/` 삭제
 7. init-mac.sh / init-linux.sh 에 Hermes 세팅 섹션 추가
 8. OpenClaw 완전 제거 판단

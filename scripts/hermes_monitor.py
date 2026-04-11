@@ -23,6 +23,7 @@ DEFAULT_RECENT_WINDOW_DAYS = 7
 DEFAULT_COMMAND_TIMEOUT_SECONDS = 10
 FAILED_ISSUE_STATUSES = frozenset({"cancelled"})
 UNATTRIBUTED_ISSUE_BUCKET = "__unattributed__"
+UNASSIGNED_PROJECT_BUCKET = "__unassigned_project__"
 
 
 def run(
@@ -246,6 +247,24 @@ def build_empty_recent_issue_stats(window_days: int, window_start: datetime) -> 
     }
 
 
+def build_project_summary(project: dict[str, Any], window_days: int, window_start: datetime) -> dict[str, Any]:
+    return {
+        "id": project.get("id"),
+        "name": project.get("name") or "unknown",
+        "urlKey": project.get("urlKey"),
+        "status": project.get("status") or "unknown",
+        "issueStats": build_empty_issue_stats(),
+        "recentIssueStats": build_empty_recent_issue_stats(window_days, window_start),
+    }
+
+
+def project_bucket_key(issue: dict[str, Any]) -> str:
+    project_id = issue.get("projectId")
+    if project_id:
+        return str(project_id)
+    return UNASSIGNED_PROJECT_BUCKET
+
+
 def issue_bucket_key(issue: dict[str, Any]) -> str:
     agent_id = issue.get("assigneeAgentId")
     if agent_id:
@@ -303,6 +322,82 @@ def build_recent_issue_stats(issues: list[dict[str, Any]], window_days: int) -> 
     return dict(by_agent)
 
 
+def build_project_summaries(
+    projects: list[dict[str, Any]],
+    issues: list[dict[str, Any]],
+    recent_window_days: int,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(days=recent_window_days)
+    summaries_by_id: dict[str, dict[str, Any]] = {
+        str(project["id"]): build_project_summary(project, recent_window_days, window_start)
+        for project in projects
+        if project.get("id")
+    }
+    unassigned_summary = build_project_summary(
+        {"id": None, "name": "unassigned", "urlKey": None, "status": "n/a"},
+        recent_window_days,
+        window_start,
+    )
+
+    for issue in issues:
+        if should_ignore_issue(issue):
+            continue
+        bucket_key = project_bucket_key(issue)
+        if bucket_key == UNASSIGNED_PROJECT_BUCKET:
+            summary = unassigned_summary
+        else:
+            summary = summaries_by_id.setdefault(
+                bucket_key,
+                build_project_summary(
+                    {
+                        "id": bucket_key,
+                        "name": f"unknown:{bucket_key}",
+                        "urlKey": None,
+                        "status": "unknown",
+                    },
+                    recent_window_days,
+                    window_start,
+                ),
+            )
+        issue_stats = summary["issueStats"]
+        issue_stats["total"] += 1
+        status = str(issue.get("status") or "")
+        if status == "done":
+            issue_stats["done"] += 1
+        elif status == "cancelled":
+            issue_stats["cancelled"] += 1
+        elif status == "blocked":
+            issue_stats["blocked"] += 1
+            issue_stats["open"] += 1
+        else:
+            issue_stats["open"] += 1
+
+        recent_stats = summary["recentIssueStats"]
+        activity_at = issue_activity_at(issue)
+        if activity_at is None or activity_at < window_start:
+            continue
+        if status == "done":
+            recent_stats["resolved"] += 1
+            recent_stats["done"] += 1
+        elif status in FAILED_ISSUE_STATUSES:
+            recent_stats["resolved"] += 1
+            recent_stats["failed"] += 1
+
+    for summary in [*summaries_by_id.values(), unassigned_summary]:
+        recent_stats = summary["recentIssueStats"]
+        resolved = int(recent_stats["resolved"])
+        if resolved > 0:
+            recent_stats["doneRatio"] = round(int(recent_stats["done"]) / resolved, 3)
+            recent_stats["failedRatio"] = round(int(recent_stats["failed"]) / resolved, 3)
+
+    sorted_projects = sorted(
+        summaries_by_id.values(),
+        key=lambda item: (str(item.get("name") or "").lower(), str(item.get("id") or "")),
+    )
+    return sorted_projects, unassigned_summary
+
+
 def collect_snapshot(
     api_base: str,
     company_id: str,
@@ -358,12 +453,18 @@ def collect_snapshot(
 
     agents: list[dict[str, Any]] = []
     issues: list[dict[str, Any]] = []
+    projects: list[dict[str, Any]] = []
     if token:
         try:
             agents_result, _ = http_json(f"{api_base}/companies/{company_id}/agents", token=token)
             agents = list(agents_result)
         except Exception as exc:
             snapshot["alerts"].append(f"paperclip agents fetch failed: {exc}")
+        try:
+            projects_result, _ = http_json(f"{api_base}/companies/{company_id}/projects", token=token)
+            projects = list(projects_result)
+        except Exception as exc:
+            snapshot["alerts"].append(f"paperclip projects fetch failed: {exc}")
         try:
             issues_result, _ = http_json(f"{api_base}/companies/{company_id}/issues", token=token)
             issues = list(issues_result)
@@ -434,6 +535,10 @@ def collect_snapshot(
     if total_resolved > 0:
         snapshot["recentIssueTotals"]["doneRatio"] = round(int(snapshot["recentIssueTotals"]["done"]) / total_resolved, 3)
         snapshot["recentIssueTotals"]["failedRatio"] = round(int(snapshot["recentIssueTotals"]["failed"]) / total_resolved, 3)
+
+    project_summaries, unassigned_project_summary = build_project_summaries(projects, issues, recent_window_days)
+    snapshot["projects"] = project_summaries
+    snapshot["unassignedProjectSummary"] = unassigned_project_summary
 
     cron_status_text = run("hermes cron status", errors=snapshot["alerts"], label="hermes cron status")
     cron_list_text = run("hermes cron list", errors=snapshot["alerts"], label="hermes cron list")

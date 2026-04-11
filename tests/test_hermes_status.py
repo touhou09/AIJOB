@@ -222,6 +222,46 @@ class HermesStatusTests(unittest.TestCase):
         self.assertIn("message=disabled", text)
         self.assertIn("slack degraded:frontend", text)
 
+    def test_build_project_lines_and_filter_snapshot_projects(self) -> None:
+        snapshot = {
+            "issueKpiWindowDays": 7,
+            "failedIssueStatuses": ["cancelled"],
+            "projects": [
+                {
+                    "id": "project-1",
+                    "name": "AIJOB",
+                    "urlKey": "aijob",
+                    "status": "active",
+                    "issueStats": {"open": 2, "blocked": 1, "done": 3, "cancelled": 0, "total": 5},
+                    "recentIssueStats": {"resolved": 2, "done": 2, "failed": 0, "doneRatio": 1.0, "failedRatio": 0.0},
+                }
+            ],
+            "unassignedProjectSummary": {
+                "id": None,
+                "name": "unassigned",
+                "urlKey": None,
+                "status": "n/a",
+                "issueStats": {"open": 1, "blocked": 0, "done": 0, "cancelled": 1, "total": 2},
+                "recentIssueStats": {"resolved": 1, "done": 0, "failed": 1, "doneRatio": 0.0, "failedRatio": 1.0},
+            },
+        }
+
+        filtered = MODULE.filter_snapshot_projects(snapshot, "aijob")
+        lines = MODULE.build_project_lines(filtered)
+        self.assertEqual(filtered["projects"][0]["name"], "AIJOB")
+        self.assertEqual(len(filtered["projects"]), 1)
+        self.assertIn("projects:", lines[0])
+        self.assertIn("AIJOB", "\n".join(lines))
+        self.assertNotIn("unassigned", "\n".join(lines))
+
+        unassigned = MODULE.filter_snapshot_projects(snapshot, "unassigned")
+        unassigned_lines = MODULE.build_project_lines(unassigned)
+        self.assertEqual(unassigned["projects"], [])
+        self.assertIn("unassigned", "\n".join(unassigned_lines))
+
+        with self.assertRaises(ValueError):
+            MODULE.filter_snapshot_projects(snapshot, "missing-project")
+
 
 if __name__ == "__main__":
     unittest.main()

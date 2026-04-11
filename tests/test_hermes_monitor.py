@@ -74,6 +74,8 @@ Profile          Model                        Gateway      Alias
                 return ({"status": "ok"}, 5.0)
             if url.endswith("/agents"):
                 return (agents, 5.0)
+            if url.endswith("/projects"):
+                return ([], 5.0)
             if url.endswith("/issues"):
                 return (issues, 5.0)
             raise AssertionError(url)
@@ -180,6 +182,8 @@ Profile          Model                        Gateway      Alias
                 return ({"status": "ok"}, 5.0)
             if url.endswith("/agents"):
                 return (agents, 5.0)
+            if url.endswith("/projects"):
+                return ([], 5.0)
             if url.endswith("/issues"):
                 return (issues, 5.0)
             raise AssertionError(url)
@@ -302,6 +306,43 @@ Profile          Model                        Gateway      Alias
         self.assertEqual(unattributed["failed"], 1)
         self.assertEqual(unattributed["doneRatio"], 0.5)
         self.assertEqual(unattributed["failedRatio"], 0.5)
+
+    def test_build_project_summaries_groups_project_and_unassigned_issues(self) -> None:
+        projects = [{"id": "project-1", "name": "AIJOB", "urlKey": "aijob", "status": "active"}]
+        issues = [
+            {
+                "projectId": "project-1",
+                "status": "in_progress",
+                "createdAt": "2026-04-10T09:00:00+00:00",
+            },
+            {
+                "projectId": "project-1",
+                "status": "done",
+                "completedAt": "2026-04-10T10:00:00+00:00",
+                "createdAt": "2026-04-09T10:00:00+00:00",
+            },
+            {
+                "status": "cancelled",
+                "cancelledAt": "2026-04-10T08:00:00+00:00",
+                "createdAt": "2026-04-08T10:00:00+00:00",
+            },
+        ]
+
+        real_datetime = MODULE.datetime
+        fake_now = real_datetime(2026, 4, 10, 12, 0, tzinfo=MODULE.timezone.utc)
+        with patch.object(MODULE, "datetime", wraps=real_datetime) as mock_datetime:
+            mock_datetime.now.return_value = fake_now
+            mock_datetime.fromisoformat.side_effect = real_datetime.fromisoformat
+            project_summaries, unassigned_summary = MODULE.build_project_summaries(projects, issues, recent_window_days=7)
+
+        self.assertEqual(len(project_summaries), 1)
+        self.assertEqual(project_summaries[0]["name"], "AIJOB")
+        self.assertEqual(project_summaries[0]["issueStats"]["open"], 1)
+        self.assertEqual(project_summaries[0]["issueStats"]["done"], 1)
+        self.assertEqual(project_summaries[0]["recentIssueStats"]["resolved"], 1)
+        self.assertEqual(project_summaries[0]["recentIssueStats"]["done"], 1)
+        self.assertEqual(unassigned_summary["issueStats"]["cancelled"], 1)
+        self.assertEqual(unassigned_summary["recentIssueStats"]["failed"], 1)
 
 
 if __name__ == "__main__":

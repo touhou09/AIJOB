@@ -50,3 +50,10 @@
 - **이유**: 회사 Claude Code의 `CLAUDE.md + rules/ + STATE` 패턴을 codex 기반 Hermes에 이식. 2026년 agent harness 업계 표준(OpenHarness, everything-claude-code, AGENTS.md 오픈 표준)과 일치. Hermes는 cwd의 AGENTS.md 하나만 자동 로드하므로 이 제약에 맞춰 구조화.
 - **상태**: 완료 (orchestrator E2E 검증 완료, 나머지 프로필 재검증 필요)
 - **참조**: `.claude/hooks/hermes-profile-sync.sh`, `.claude/profiles/`, work/hermes-infra.md (2026-04-10 항목)
+
+## AD-006: 단일 company 유지 + projectId 워크스트림 분리
+- **일시**: 2026-04-11
+- **결정**: Paperclip company `dororong`은 유지하고, 워크스트림 구분은 company 분리 대신 projectId로 강제한다. 기본 taxonomy는 `AIJOB(aijob)`, `Hermes Infra(hermes-infra)`, `AivaLink(aivalink)` 3개로 시작한다.
+- **이유**: issuePrefix/issueCounter가 company 단위로 고정되어 복수 company 분리는 에이전트/토큰/운영 설정 복제를 유발한다. 단일 company 아래 projectId를 필수화하면 기존 DOR 키를 유지하면서도 필터링/집계/리드 관리가 가능하다.
+- **상태**: 완료
+- **참조**: `.claude/rules/paperclip-policy.md`, `.claude/integrations/paperclip.md`, `DOR-18`, `DOR-19`

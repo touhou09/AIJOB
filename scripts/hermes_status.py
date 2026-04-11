@@ -314,14 +314,105 @@ def build_notification_lines(snapshot: dict[str, Any]) -> list[str]:
     return lines + [f"- sent={notification.get('sent')} message={notification.get('message')}"]
 
 
-def format_status_text(result: SnapshotLoadResult, warning_minutes: int) -> str:
-    snapshot = result.snapshot
-    counts = summarize_counts(snapshot, warning_minutes)
-    paperclip = snapshot.get("paperclipHealth", {})
-    generated_at = snapshot.get("generatedAt", "unknown")
+def match_project(project: dict[str, Any], selector: str) -> bool:
+    normalized = selector.strip().lower()
+    candidates = [
+        str(project.get("id") or "").lower(),
+        str(project.get("name") or "").lower(),
+        str(project.get("urlKey") or "").lower(),
+    ]
+    return normalized in candidates
+
+
+def filter_snapshot_projects(snapshot: dict[str, Any], selector: str | None) -> dict[str, Any]:
+    if not selector:
+        return snapshot
+    filtered_snapshot = dict(snapshot)
+    projects = list(snapshot.get("projects", []))
+    selected_projects = [project for project in projects if match_project(project, selector)]
+    unassigned_summary = snapshot.get("unassignedProjectSummary", {})
+    if selector.strip().lower() == "unassigned":
+        filtered_snapshot["projects"] = []
+        filtered_snapshot["unassignedProjectSummary"] = unassigned_summary
+        return filtered_snapshot
+    if not selected_projects:
+        raise ValueError(f"Unknown project selector: {selector}")
+    filtered_snapshot["projects"] = selected_projects
+    filtered_snapshot["unassignedProjectSummary"] = {
+        "id": None,
+        "name": "unassigned",
+        "urlKey": None,
+        "status": "n/a",
+        "issueStats": {"done": 0, "cancelled": 0, "blocked": 0, "open": 0, "total": 0},
+        "recentIssueStats": {
+            "windowDays": int(snapshot.get("issueKpiWindowDays", 0)),
+            "windowStart": "",
+            "resolved": 0,
+            "done": 0,
+            "failed": 0,
+            "doneRatio": 0.0,
+            "failedRatio": 0.0,
+            "failedStatuses": list(snapshot.get("failedIssueStatuses", [])),
+        },
+    }
+    return filtered_snapshot
+
+
+def build_project_lines(snapshot: dict[str, Any]) -> list[str]:
+    projects = list(snapshot.get("projects", []))
+    lines = ["projects:"]
+    if not projects:
+        unassigned = snapshot.get("unassignedProjectSummary", {})
+        unassigned_stats = unassigned.get("issueStats", {})
+        unassigned_recent = unassigned.get("recentIssueStats", {})
+        if int(unassigned_stats.get("total", 0)) == 0 and int(unassigned_recent.get("resolved", 0)) == 0:
+            return lines + ["- none"]
+    for project in projects:
+        issue_stats = project.get("issueStats", {})
+        recent = project.get("recentIssueStats", {})
+        lines.append(
+            "- {name:<18} key={url_key:<12} status={status:<8} open={open_issues:<2} blocked={blocked:<2} done={done:<2} total={total:<2} recent={recent_done}/{recent_failed}/{recent_resolved}".format(
+                name=truncate(str(project.get("name") or "unknown"), 18),
+                url_key=truncate(str(project.get("urlKey") or project.get("id") or "-"), 12),
+                status=truncate(str(project.get("status") or "unknown"), 8),
+                open_issues=int(issue_stats.get("open", 0)),
+                blocked=int(issue_stats.get("blocked", 0)),
+                done=int(issue_stats.get("done", 0)),
+                total=int(issue_stats.get("total", 0)),
+                recent_done=int(recent.get("done", 0)),
+                recent_failed=int(recent.get("failed", 0)),
+                recent_resolved=int(recent.get("resolved", 0)),
+            )
+        )
+    unassigned = snapshot.get("unassignedProjectSummary", {})
+    unassigned_stats = unassigned.get("issueStats", {})
+    unassigned_recent = unassigned.get("recentIssueStats", {})
+    if int(unassigned_stats.get("total", 0)) > 0 or int(unassigned_recent.get("resolved", 0)) > 0:
+        lines.append(
+            "- {name:<18} key={url_key:<12} status={status:<8} open={open_issues:<2} blocked={blocked:<2} done={done:<2} total={total:<2} recent={recent_done}/{recent_failed}/{recent_resolved}".format(
+                name=truncate(str(unassigned.get("name") or "unassigned"), 18),
+                url_key=truncate("unassigned", 12),
+                status=truncate(str(unassigned.get("status") or "n/a"), 8),
+                open_issues=int(unassigned_stats.get("open", 0)),
+                blocked=int(unassigned_stats.get("blocked", 0)),
+                done=int(unassigned_stats.get("done", 0)),
+                total=int(unassigned_stats.get("total", 0)),
+                recent_done=int(unassigned_recent.get("done", 0)),
+                recent_failed=int(unassigned_recent.get("failed", 0)),
+                recent_resolved=int(unassigned_recent.get("resolved", 0)),
+            )
+        )
+    return lines
+
+
+def format_status_text(result: SnapshotLoadResult, warning_minutes: int, project: str | None = None) -> str:
+    filtered_snapshot = filter_snapshot_projects(result.snapshot, project)
+    counts = summarize_counts(result.snapshot, warning_minutes)
+    paperclip = result.snapshot.get("paperclipHealth", {})
+    generated_at = result.snapshot.get("generatedAt", "unknown")
     age_text = "unknown" if result.age_minutes is None else f"{result.age_minutes:.1f}m"
-    kpi_window_days = int(snapshot.get("issueKpiWindowDays", 0))
-    failed_statuses = ",".join(snapshot.get("failedIssueStatuses", [])) or "-"
+    kpi_window_days = int(result.snapshot.get("issueKpiWindowDays", 0))
+    failed_statuses = ",".join(result.snapshot.get("failedIssueStatuses", [])) or "-"
 
     lines = [
         f"generatedAt: {generated_at}",
@@ -334,15 +425,18 @@ def format_status_text(result: SnapshotLoadResult, warning_minutes: int) -> str:
             **counts,
         ),
         f"recent_issue_window: {kpi_window_days}d failed_statuses={failed_statuses}",
+        f"project_filter: {project or 'all'}",
         "",
     ]
-    lines.extend(build_agent_lines(snapshot))
+    lines.extend(build_project_lines(filtered_snapshot))
     lines.append("")
-    lines.extend(build_profile_lines(snapshot))
+    lines.extend(build_agent_lines(result.snapshot))
     lines.append("")
-    lines.extend(build_notification_lines(snapshot))
+    lines.extend(build_profile_lines(result.snapshot))
     lines.append("")
-    alerts = snapshot.get("alerts", [])
+    lines.extend(build_notification_lines(result.snapshot))
+    lines.append("")
+    alerts = result.snapshot.get("alerts", [])
     if alerts:
         lines.append("alerts:")
         lines.extend(f"- {alert}" for alert in alerts)
@@ -390,6 +484,10 @@ def build_parser(monitor_module: Any) -> argparse.ArgumentParser:
         type=int,
         default=monitor_module.DEFAULT_RECENT_WINDOW_DAYS,
     )
+    parser.add_argument(
+        "--project",
+        help="Filter the project summary section by project id, name, urlKey, or 'unassigned'",
+    )
     return parser
 
 
@@ -411,10 +509,12 @@ def main() -> int:
         recent_window_days=args.recent_window_days,
     )
 
+    filtered_snapshot = filter_snapshot_projects(result.snapshot, args.project)
+
     if args.json:
-        print(json.dumps(result.snapshot, indent=2, ensure_ascii=False))
+        print(json.dumps(filtered_snapshot, indent=2, ensure_ascii=False))
     else:
-        print(format_status_text(result, args.warning_minutes))
+        print(format_status_text(result, args.warning_minutes, args.project))
 
     return 0
 
