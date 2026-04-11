@@ -9,9 +9,13 @@
 - 데이터 스키마 변경 (BREAKING 판단 대상)
 
 ## 제외 범위
-- team-qa 테스트 작성 (QA 자체 검증)
+- team-qa 테스트 작성 / 회귀 검증 (QA 자체 검증)
 - orchestrator 분해/분배 판단 (CEO 권한)
 - 단순 문서 / 상수 / 버전 업데이트
+- preflight / 리서치 / 조사 / 진단 이슈 (`[DIAG]`, 웹 리서치, 로그 분석, 선행 검증)
+- 에셋 수집, ATTRIBUTION 정리, 파일 시스템 배치 같은 운영 작업
+
+> 제외 범위에 해당하는 이슈는 engineer가 `status: done` 직접 전환 + 코멘트에 `skip-cto-review: {이유}` 를 명시한다. `assigneeUserId`를 설정해 user에게 반려하면 안 된다 (orphan 발생). 상세는 `paperclip-policy.md` "5단계 — 완료" 참조.
 
 ---
 

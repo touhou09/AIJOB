@@ -58,6 +58,17 @@
 - **상태**: 완료
 - **참조**: `.claude/rules/paperclip-policy.md`, `.claude/integrations/paperclip.md`, `DOR-18`, `DOR-19`
 
+## AD-008: in_review orphan 패턴 구조 수정 — `assigneeUserId` 금지 + 5단계 완료 규칙 세분화
+- **일시**: 2026-04-11
+- **결정**:
+  1. `rules/paperclip-policy.md` "5단계 — 완료" 규칙을 A/B/C/D 4경로로 세분화. 에이전트가 CTO 리뷰 대상/생략 대상/reporter agent/reporter user 4가지 케이스를 명시적으로 판단.
+  2. **`assigneeUserId` 에이전트 설정 금지**. user 반려 상태는 heartbeat 사이클에서 픽업 불가능한 sink hole이라 구조적 orphan을 만든다.
+  3. user에게 질문/판단이 필요하면 `assigneeAgentId`를 유지한 채 코멘트로 질문 + `blocked` 상태 전환. user 코멘트 응답 시 adapter wake로 해제.
+  4. `rules/cto-review-checklist.md` "제외 범위"에 preflight/리서치/조사/에셋 수집/ATTRIBUTION 명시 추가. skip-cto-review 경로의 완료 처리 방식을 paperclip-policy와 cross-reference.
+- **이유**: 이번 세션(2026-04-11)에 생성한 11개 이슈 중 5개(DOR-22/23/25/30/31)가 user orphan 상태로 종료되어 재현율 45%. 루트 코즈는 기존 "reporter ≠ assignee → assignee를 reporter로 변경" 규칙이 reporter가 user(createdByUserId만 있고 reporterAgentId=null)인 케이스에서 `assigneeUserId=user`로 해석되는 것. 에이전트 의도는 맞지만 Paperclip 데이터 모델상 user는 heartbeat 사이클 참여자가 아니므로 pickup 불가능. 구조 수정 없이 정책/훈련으로 해결 불가.
+- **상태**: 완료
+- **참조**: `.claude/rules/paperclip-policy.md` (5단계), `.claude/rules/cto-review-checklist.md` (제외 범위), DOR-22/23/25/30/31 (재현 사례), `~/.claude/projects/-Users-yuseungju/memory/feedback_paperclip_in_review_orphan.md`
+
 ## AD-007: DOR-5 피벗 — 모니터링 UX를 Paperclip 플러그인(doro-office)으로 확장
 - **일시**: 2026-04-11
 - **결정**:

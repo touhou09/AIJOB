@@ -140,12 +140,32 @@ todo ─→ in_progress ─→ in_review ─→ done
   ```
 
 ### 5단계 — 완료
-- **reporter == assignee**: `done` 상태 + 완료 요약 코멘트
-- **reporter ≠ assignee**: `in_review` 상태 + assignee를 reporter로 변경 + 완료 요약 코멘트
-- **parentId 존재**: 부모 이슈에 완료 알림 코멘트
-  ```
-  [auto] {agentName}이 DOR-X를 완료. 요약: {한줄}
-  ```
+
+완료 시 다음 순서로 판단한다. **A → B → C → D 중 가장 먼저 해당하는 경로를 택한다.**
+
+**A. CTO 리뷰 대상** (`rules/cto-review-checklist.md` "적용 범위" 참조)
+- team-backend/frontend/data의 구현 이슈, team-devops 인프라/IaC 변경
+- 스키마/아키텍처/보안 영향이 있는 변경
+- → `status: in_review`, `assigneeAgentId: team-cto`, `assigneeUserId: null`
+
+**B. CTO 리뷰 생략 대상** (`rules/cto-review-checklist.md` "제외 범위")
+- 단순 문서/상수/버전 업데이트
+- preflight / 리서치 / 조사 / 진단 이슈 (`[DIAG]`, 웹 리서치, 로그 분석, 선행 검증)
+- team-qa가 직접 수행한 테스트 작성/회귀 검증
+- 에셋 수집, ATTRIBUTION 정리 같은 운영 작업
+- → `status: done` 직접 전환 + 코멘트에 `skip-cto-review: {이유}` 명시
+
+**C. 다른 에이전트가 `reporterAgentId` 필드에 명시된 경우**
+- → `status: in_review`, `assigneeAgentId: {reporterAgentId}`, `assigneeUserId: null`
+
+**D. reporter가 user (`reporterAgentId: null`)이고 A/B/C 해당 없음**
+- → `status: done` 직접 전환 (user는 heartbeat 참여자가 아니므로 orphan 차단)
+
+**금지 사항**
+- 에이전트는 `assigneeUserId`를 명시적으로 설정하지 않는다. user 반려 상태는 에이전트 heartbeat 사이클에서 픽업 불가능하므로 sink hole이 된다.
+- user에게 질문이 필요하면 현재 `assigneeAgentId`를 유지한 채 코멘트로 질문을 남기고 `blocked` 상태로 전환한다. user가 코멘트로 응답하면 adapter wake 사이클에서 해제한다.
+
+**parentId 존재 시**: 위 어느 경로든 부모 이슈에 `[auto] {agentName}이 DOR-X 완료. 요약: {한줄}` 코멘트 1건 추가.
 
 ## 코멘트 트리거 대응
 
