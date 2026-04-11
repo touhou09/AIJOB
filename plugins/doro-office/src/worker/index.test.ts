@@ -1,11 +1,13 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestHarness } from '@paperclipai/plugin-sdk/testing';
 import plugin from './index';
 import manifest from '../manifest';
 
 const companyId = 'company-1';
 
-function createAgent(id: string, name: string, status: 'idle' | 'active') {
+type AgentStatus = 'idle' | 'active' | 'paused' | 'running' | 'error' | 'pending_approval' | 'terminated';
+
+function createAgent(id: string, name: string, status: AgentStatus) {
   const timestamp = new Date('2026-04-11T00:00:00.000Z');
 
   return {
@@ -36,7 +38,7 @@ function createAgent(id: string, name: string, status: 'idle' | 'active') {
   };
 }
 
-describe('doro-office worker', () => {
+describe('doro-office worker bridge', () => {
   let harness: ReturnType<typeof createTestHarness>;
 
   beforeEach(async () => {
@@ -47,17 +49,22 @@ describe('doro-office worker', () => {
     });
   });
 
-  it('returns sorted roster data', async () => {
+  it('returns sorted roster data and reuses the initial fetch', async () => {
+    const listSpy = vi.spyOn(harness.ctx.agents, 'list');
     const roster = await harness.getData<{
       companyId: string;
-      agents: Array<{ name: string; lastHeartbeatAt: string | null }>;
       source: string;
+      agents: Array<{
+        name: string;
+        lastHeartbeatAt: string | null;
+      }>;
     }>('agent-roster', { companyId });
 
     expect(roster.companyId).toBe(companyId);
     expect(roster.source).toBe('initial');
     expect(roster.agents.map((agent) => agent.name)).toEqual(['Alpha', 'Bravo']);
     expect(roster.agents[0]?.lastHeartbeatAt).toBe('2026-04-11T00:00:00.000Z');
+    expect(listSpy).toHaveBeenCalledTimes(1);
   });
 
   it('returns an explicit error payload when company context is missing', async () => {
@@ -71,11 +78,11 @@ describe('doro-office worker', () => {
     const roster = await harness.performAction<{
       companyId: string;
       source: string;
-      agents: Array<{ status: string }>;
+      agents: Array<{ name: string }>;
     }>('refresh-agent-roster', { companyId });
 
     expect(roster.companyId).toBe(companyId);
     expect(roster.source).toBe('refresh');
-    expect(roster.agents).toHaveLength(2);
+    expect(roster.agents[1]?.name).toBe('Bravo');
   });
 });

@@ -250,6 +250,10 @@ class HermesStatusTests(unittest.TestCase):
         lines = MODULE.build_project_lines(filtered)
         self.assertEqual(filtered["projects"][0]["name"], "AIJOB")
         self.assertEqual(len(filtered["projects"]), 1)
+        self.assertEqual(filtered["issueTotals"], {"open": 2, "blocked": 1, "done": 3, "cancelled": 0, "total": 5})
+        self.assertEqual(filtered["recentIssueTotals"]["resolved"], 2)
+        self.assertEqual(filtered["recentIssueTotals"]["done"], 2)
+        self.assertEqual(filtered["recentIssueTotals"]["failed"], 0)
         self.assertIn("projects:", lines[0])
         self.assertIn("AIJOB", "\n".join(lines))
         self.assertNotIn("unassigned", "\n".join(lines))
@@ -257,10 +261,75 @@ class HermesStatusTests(unittest.TestCase):
         unassigned = MODULE.filter_snapshot_projects(snapshot, "unassigned")
         unassigned_lines = MODULE.build_project_lines(unassigned)
         self.assertEqual(unassigned["projects"], [])
+        self.assertEqual(unassigned["issueTotals"], {"open": 1, "blocked": 0, "done": 0, "cancelled": 1, "total": 2})
+        self.assertEqual(unassigned["recentIssueTotals"]["resolved"], 1)
+        self.assertEqual(unassigned["recentIssueTotals"]["failed"], 1)
         self.assertIn("unassigned", "\n".join(unassigned_lines))
 
         with self.assertRaises(ValueError):
             MODULE.filter_snapshot_projects(snapshot, "missing-project")
+
+    def test_format_status_text_scopes_issue_summary_with_project_filter(self) -> None:
+        snapshot = {
+            "generatedAt": "2026-04-11T00:00:00Z",
+            "issueKpiWindowDays": 7,
+            "failedIssueStatuses": ["cancelled"],
+            "paperclipHealth": {"status": "ok", "latencyMs": 12},
+            "gateways": [{"profile": "frontend", "state": "running", "pid": "123", "gatewayCli": "frontend"}],
+            "agents": [
+                {
+                    "name": "team-frontend",
+                    "profile": "frontend",
+                    "status": "running",
+                    "lastHeartbeatAt": "2999-01-01T00:00:00Z",
+                    "issueStats": {"open": 5, "blocked": 1, "done": 8, "cancelled": 0, "total": 13},
+                    "recentIssueStats": {"resolved": 6, "done": 5, "failed": 1, "doneRatio": 0.833, "failedRatio": 0.167},
+                }
+            ],
+            "profiles": [{"profile": "frontend", "gateway": {"state": "running"}, "agents": [{"name": "team-frontend"}], "issues": {"open": 5, "done": 8, "cancelled": 0, "blocked": 1, "total": 13}, "recentIssues": {"resolved": 6, "done": 5, "failed": 1, "doneRatio": 0.833, "failedRatio": 0.167}}],
+            "notification": None,
+            "alerts": [],
+            "unattributedIssueStats": {"open": 0, "blocked": 0, "done": 0, "cancelled": 0, "total": 0},
+            "unattributedRecentIssueStats": {"resolved": 0, "done": 0, "failed": 0, "doneRatio": 0.0, "failedRatio": 0.0},
+            "issueTotals": {"open": 5, "blocked": 1, "done": 8, "cancelled": 0, "total": 13},
+            "recentIssueTotals": {"resolved": 6, "done": 5, "failed": 1, "doneRatio": 0.833, "failedRatio": 0.167},
+            "projects": [
+                {
+                    "id": "project-1",
+                    "name": "AIJOB",
+                    "urlKey": "aijob",
+                    "status": "active",
+                    "issueStats": {"open": 2, "blocked": 1, "done": 3, "cancelled": 0, "total": 5},
+                    "recentIssueStats": {"resolved": 2, "done": 2, "failed": 0, "doneRatio": 1.0, "failedRatio": 0.0},
+                },
+                {
+                    "id": "project-2",
+                    "name": "Hermes Infra",
+                    "urlKey": "hermes-infra",
+                    "status": "planned",
+                    "issueStats": {"open": 3, "blocked": 0, "done": 5, "cancelled": 0, "total": 8},
+                    "recentIssueStats": {"resolved": 4, "done": 3, "failed": 1, "doneRatio": 0.75, "failedRatio": 0.25},
+                },
+            ],
+            "unassignedProjectSummary": {
+                "id": None,
+                "name": "unassigned",
+                "urlKey": None,
+                "status": "n/a",
+                "issueStats": {"open": 0, "blocked": 0, "done": 0, "cancelled": 0, "total": 0},
+                "recentIssueStats": {"resolved": 0, "done": 0, "failed": 0, "doneRatio": 0.0, "failedRatio": 0.0},
+            },
+        }
+        result = MODULE.SnapshotLoadResult(snapshot=snapshot, source="cache", snapshot_path=Path("latest.json"), age_minutes=1.0)
+
+        text = MODULE.format_status_text(result, warning_minutes=30, project="hermes-infra")
+        filtered = MODULE.filter_snapshot_projects(snapshot, "hermes-infra")
+
+        self.assertIn("project_filter: hermes-infra", text)
+        self.assertIn("summary: gateways=1/1 fresh_agents=1/1 stale_agents=0 open_issues=3 recent_resolved=4 recent_failed=1 alerts=0", text)
+        self.assertEqual(filtered["issueTotals"], {"open": 3, "blocked": 0, "done": 5, "cancelled": 0, "total": 8})
+        self.assertEqual(filtered["recentIssueTotals"]["resolved"], 4)
+        self.assertEqual(filtered["recentIssueTotals"]["failed"], 1)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,11 @@
 import { createPluginBundlerPresets } from '@paperclipai/plugin-sdk/bundlers';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
+
+const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string };
+const manifestFileName = `manifest-v${packageJson.version}.js`;
 
 const presets = createPluginBundlerPresets({
   manifestEntry: 'src/manifest.ts',
@@ -41,7 +45,7 @@ export default defineConfig(({ mode }) => {
         lib: {
           entry: presets.rollup.manifest.input,
           formats: ['es'],
-          fileName: () => 'manifest.js',
+          fileName: () => manifestFileName,
         },
         rollupOptions: {
           external: presets.rollup.manifest.external,

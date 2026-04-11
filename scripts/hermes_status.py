@@ -169,17 +169,26 @@ def summarize_counts(snapshot: dict[str, Any], warning_minutes: int) -> dict[str
             stale_agents += 1
         else:
             fresh_agents += 1
-    unattributed_stats = snapshot.get("unattributedIssueStats", {})
-    unattributed_recent = snapshot.get("unattributedRecentIssueStats", {})
-    total_open_issues = sum(int(agent.get("issueStats", {}).get("open", 0)) for agent in agents) + int(
-        unattributed_stats.get("open", 0)
-    )
-    resolved_recent = sum(int(agent.get("recentIssueStats", {}).get("resolved", 0)) for agent in agents) + int(
-        unattributed_recent.get("resolved", 0)
-    )
-    failed_recent = sum(int(agent.get("recentIssueStats", {}).get("failed", 0)) for agent in agents) + int(
-        unattributed_recent.get("failed", 0)
-    )
+    issue_totals = snapshot.get("issueTotals")
+    recent_issue_totals = snapshot.get("recentIssueTotals")
+    if issue_totals is None:
+        unattributed_stats = snapshot.get("unattributedIssueStats", {})
+        total_open_issues = sum(int(agent.get("issueStats", {}).get("open", 0)) for agent in agents) + int(
+            unattributed_stats.get("open", 0)
+        )
+    else:
+        total_open_issues = int(issue_totals.get("open", 0))
+    if recent_issue_totals is None:
+        unattributed_recent = snapshot.get("unattributedRecentIssueStats", {})
+        resolved_recent = sum(int(agent.get("recentIssueStats", {}).get("resolved", 0)) for agent in agents) + int(
+            unattributed_recent.get("resolved", 0)
+        )
+        failed_recent = sum(int(agent.get("recentIssueStats", {}).get("failed", 0)) for agent in agents) + int(
+            unattributed_recent.get("failed", 0)
+        )
+    else:
+        resolved_recent = int(recent_issue_totals.get("resolved", 0))
+        failed_recent = int(recent_issue_totals.get("failed", 0))
     return {
         "running_gateways": sum(1 for gateway in gateways if gateway.get("state") == "running"),
         "total_gateways": len(gateways),
@@ -324,6 +333,44 @@ def match_project(project: dict[str, Any], selector: str) -> bool:
     return normalized in candidates
 
 
+def build_empty_issue_stats() -> dict[str, int]:
+    return {"done": 0, "cancelled": 0, "blocked": 0, "open": 0, "total": 0}
+
+
+def build_empty_recent_issue_stats(snapshot: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "windowDays": int(snapshot.get("issueKpiWindowDays", 0)),
+        "windowStart": "",
+        "resolved": 0,
+        "done": 0,
+        "failed": 0,
+        "doneRatio": 0.0,
+        "failedRatio": 0.0,
+        "failedStatuses": list(snapshot.get("failedIssueStatuses", [])),
+    }
+
+
+def sum_project_issue_stats(projects: list[dict[str, Any]]) -> dict[str, int]:
+    totals = build_empty_issue_stats()
+    for project in projects:
+        for key in totals:
+            totals[key] += int(project.get("issueStats", {}).get(key, 0))
+    return totals
+
+
+def sum_project_recent_issue_stats(snapshot: dict[str, Any], projects: list[dict[str, Any]]) -> dict[str, Any]:
+    totals = build_empty_recent_issue_stats(snapshot)
+    for project in projects:
+        recent_stats = project.get("recentIssueStats", {})
+        for key in ("resolved", "done", "failed"):
+            totals[key] += int(recent_stats.get(key, 0))
+    resolved = int(totals["resolved"])
+    if resolved > 0:
+        totals["doneRatio"] = round(int(totals["done"]) / resolved, 3)
+        totals["failedRatio"] = round(int(totals["failed"]) / resolved, 3)
+    return totals
+
+
 def filter_snapshot_projects(snapshot: dict[str, Any], selector: str | None) -> dict[str, Any]:
     if not selector:
         return snapshot
@@ -334,6 +381,8 @@ def filter_snapshot_projects(snapshot: dict[str, Any], selector: str | None) -> 
     if selector.strip().lower() == "unassigned":
         filtered_snapshot["projects"] = []
         filtered_snapshot["unassignedProjectSummary"] = unassigned_summary
+        filtered_snapshot["issueTotals"] = dict(unassigned_summary.get("issueStats", build_empty_issue_stats()))
+        filtered_snapshot["recentIssueTotals"] = dict(unassigned_summary.get("recentIssueStats", build_empty_recent_issue_stats(snapshot)))
         return filtered_snapshot
     if not selected_projects:
         raise ValueError(f"Unknown project selector: {selector}")
@@ -343,18 +392,11 @@ def filter_snapshot_projects(snapshot: dict[str, Any], selector: str | None) -> 
         "name": "unassigned",
         "urlKey": None,
         "status": "n/a",
-        "issueStats": {"done": 0, "cancelled": 0, "blocked": 0, "open": 0, "total": 0},
-        "recentIssueStats": {
-            "windowDays": int(snapshot.get("issueKpiWindowDays", 0)),
-            "windowStart": "",
-            "resolved": 0,
-            "done": 0,
-            "failed": 0,
-            "doneRatio": 0.0,
-            "failedRatio": 0.0,
-            "failedStatuses": list(snapshot.get("failedIssueStatuses", [])),
-        },
+        "issueStats": build_empty_issue_stats(),
+        "recentIssueStats": build_empty_recent_issue_stats(snapshot),
     }
+    filtered_snapshot["issueTotals"] = sum_project_issue_stats(selected_projects)
+    filtered_snapshot["recentIssueTotals"] = sum_project_recent_issue_stats(snapshot, selected_projects)
     return filtered_snapshot
 
 
@@ -407,12 +449,12 @@ def build_project_lines(snapshot: dict[str, Any]) -> list[str]:
 
 def format_status_text(result: SnapshotLoadResult, warning_minutes: int, project: str | None = None) -> str:
     filtered_snapshot = filter_snapshot_projects(result.snapshot, project)
-    counts = summarize_counts(result.snapshot, warning_minutes)
+    counts = summarize_counts(filtered_snapshot, warning_minutes)
     paperclip = result.snapshot.get("paperclipHealth", {})
     generated_at = result.snapshot.get("generatedAt", "unknown")
     age_text = "unknown" if result.age_minutes is None else f"{result.age_minutes:.1f}m"
-    kpi_window_days = int(result.snapshot.get("issueKpiWindowDays", 0))
-    failed_statuses = ",".join(result.snapshot.get("failedIssueStatuses", [])) or "-"
+    kpi_window_days = int(filtered_snapshot.get("issueKpiWindowDays", 0))
+    failed_statuses = ",".join(filtered_snapshot.get("failedIssueStatuses", [])) or "-"
 
     lines = [
         f"generatedAt: {generated_at}",

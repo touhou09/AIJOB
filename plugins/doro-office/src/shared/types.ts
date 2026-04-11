@@ -3,7 +3,6 @@ import type { Agent } from '@paperclipai/plugin-sdk';
 export type AgentSnapshot = {
   id: string;
   name: string;
-  urlKey: string;
   role: Agent['role'];
   status: Agent['status'];
   lastHeartbeatAt: string | null;

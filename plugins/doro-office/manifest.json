@@ -1,9 +1,9 @@
 {
   "id": "dororong.doro-office",
   "apiVersion": 1,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "displayName": "Doro Office",
-  "description": "Office-style Hermes agent roster for Paperclip company dashboards.",
+  "description": "Card-grid Hermes agent roster for Paperclip company dashboards.",
   "author": "team-frontend",
   "categories": ["ui"],
   "capabilities": ["agents.read", "ui.page.register", "ui.sidebar.register"],

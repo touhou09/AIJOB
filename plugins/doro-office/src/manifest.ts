@@ -3,12 +3,12 @@ import type { PaperclipPluginManifestV1 } from '@paperclipai/plugin-sdk';
 const manifest: PaperclipPluginManifestV1 = {
   id: 'dororong.doro-office',
   apiVersion: 1,
-  version: '0.1.1-widget-test',
+  version: '0.1.2',
   displayName: 'Doro Office',
-  description: 'Office-style Hermes agent roster for Paperclip company dashboards.',
+  description: 'Card-grid Hermes agent roster for Paperclip company dashboards.',
   author: 'team-frontend',
   categories: ['ui'],
-  capabilities: ['agents.read', 'ui.page.register', 'ui.sidebar.register', 'ui.dashboardWidget.register'],
+  capabilities: ['agents.read', 'ui.page.register', 'ui.sidebar.register'],
   entrypoints: {
     worker: 'dist/worker.js',
     ui: 'dist/ui',
@@ -27,12 +27,6 @@ const manifest: PaperclipPluginManifestV1 = {
         id: 'office-sidebar',
         displayName: 'Doro Office',
         exportName: 'OfficeSidebar',
-      },
-      {
-        type: 'dashboardWidget',
-        id: 'office-widget',
-        displayName: 'Doro Office Pulse',
-        exportName: 'OfficeWidget',
       },
     ],
   },

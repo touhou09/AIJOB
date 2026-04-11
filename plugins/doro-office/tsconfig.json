@@ -17,5 +17,6 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["node"]
   },
-  "include": ["src", "vite.config.ts", "tailwind.config.ts"]
+  "include": ["src", "vite.config.ts", "tailwind.config.ts"],
+  "exclude": ["src/shared/state-machine.ts", "src/shared/state-machine.test.ts", "src/ui/Character.tsx", "src/ui/SpeechBubble.tsx"]
 }
