@@ -73,14 +73,28 @@ AIJOB/.claude/                         ← 템플릿 (git, source of truth)
 | Hermes Infra | `hermes-infra` | gateway, Paperclip, 모니터링, `/hermes-status`, 런타임 운영 변경 |
 | AivaLink | `aivalink` | AivaLink 제품 기능 / API / UI / E2E |
 
-## 활성 이슈 (2026-04-11 09:30 KST 기준)
+## 활성 이슈 (2026-04-11 10:30 KST 기준)
 
-| 이슈 | 프로젝트 | 상태 | 담당 | 비고 |
-|------|---------|------|------|------|
-| DOR-5 | hermes-infra | in_review | user | CTO 리뷰 후 user 반려 상태, DOR-17에서 설계 재검토 중 |
-| DOR-17 | hermes-infra | todo | orchestrator | DOR-5 설계 기대치 gap 수집 (사용자 구조 피드백 대기) |
+### EPIC: doro-office 구현 (DOR-21, hermes-infra)
+Paperclip 플러그인으로 Hermes 에이전트 시각 모니터링. DOR-5/17 재기획 결과물.
 
-완료: DOR-13/14/15 (monitor 구축), DOR-18/19/20 (Paperclip projects 도입 + backfill + `/hermes-status --project` 필터), 기존 DOR-6/8/9/10/16 등 harness E2E.
+| 이슈 | 상태 | 담당 | 레이어 | 비고 |
+|------|------|------|--------|------|
+| DOR-21 | todo | orchestrator | EPIC | 전체 통합 |
+| DOR-22 | todo | team-devops | preflight | React/Tailwind 버전 호환성 |
+| DOR-23 | todo | team-devops | preflight | worker filesystem capability |
+| DOR-24 | todo | team-devops | preflight | 로컬 개발 루프 (hot reload) |
+| DOR-25 | todo | team-devops | preflight | dashboard widget 권한 |
+| DOR-26 | todo | orchestrator | MVP-0 parent | 스켈레톤 + 카드 그리드 |
+| DOR-27 | todo | team-frontend | MVP-0 | npm 패키지 + manifest |
+| DOR-28 | todo | team-backend | MVP-0 | worker Paperclip 폴링 |
+| DOR-29 | todo | team-frontend | MVP-0 | OfficePage 카드 그리드 |
+| DOR-30 | todo | team-qa | MVP-0 | 로컬 설치 검증 |
+| DOR-31 | todo | team-data | assets | 도로롱 캐릭터 4상태 수집 |
+
+완료: DOR-5/13/14/15/17/18/19/20 (monitor 데이터 레이어 + Paperclip projects + `/hermes-status --project` + DOR-5 재기획), 기존 DOR-6/8/9/10/16 등 harness E2E.
+
+MVP-1/2/3 티켓은 MVP-0 완료 시점에 orchestrator가 순차 분해 (선분해 금지).
 
 ## 알려진 이슈
 - Paperclip 서버가 `adapterConfig.cwd`를 확인 않고 fallback workspace warning 출력 — adapter 자체는 config.cwd 우선이지만 실제 Hermes subprocess cwd 검증 필요
@@ -89,11 +103,12 @@ AIJOB/.claude/                         ← 템플릿 (git, source of truth)
 - `scripts/hermes_monitor.py::parse_profiles()` 첫 글자 whitelist로 인한 프로필 누락 버그 — 알파벳 검사로 교체 (같은 버그를 DOR-5에서 backend 에이전트도 독립 수정 중)
 
 ## 다음 작업
-1. DOR-17 (DOR-5 설계 재검토): 사용자가 기대한 모니터링 구조 항목화 → gap 리스트 → 수용/변경/기각 분류
-2. RFC paperclipai/paperclip#175 `worktreeIsolation` 머지 감시 + `hermes-paperclip-adapter` 업그레이드 추적
-3. Paperclip project별 `workspaceStrategy.provisionCommand` 설정 검토 (per-이슈 worktree 초기화)
-4. in_review 전환 시 assignee 누락 방지 — engineer SOUL.md 또는 paperclip-policy에 체크 추가
-5. 코멘트 트리거 테스트 (done 이슈에 질문 코멘트 → wake 확인)
-6. 기존 레거시 `AIJOB/profiles/` 삭제
-7. init-mac.sh / init-linux.sh 에 Hermes 세팅 섹션 추가
-8. OpenClaw 완전 제거 판단
+1. **DOR-22/23/24/25 선행 기술 검증 4건** 결과 확인 후 MVP-0 착수 조건 확정
+2. **DOR-27~30 MVP-0 child 4건** 진행 감시 (frontend/backend/qa)
+3. **DOR-31 도로롱 에셋 소싱** (team-data) — MVP-1 블로커
+4. MVP-0 완료 시 orchestrator에 MVP-1 분해 요청
+5. RFC paperclipai/paperclip#175 `worktreeIsolation` 머지 감시 + `hermes-paperclip-adapter` 업그레이드 추적
+6. in_review 전환 시 assignee 누락 방지 — engineer SOUL.md 또는 paperclip-policy에 체크 추가
+7. 기존 레거시 `AIJOB/profiles/` 삭제
+8. init-mac.sh / init-linux.sh 에 Hermes 세팅 섹션 추가
+9. OpenClaw 완전 제거 판단

@@ -57,3 +57,17 @@
 - **이유**: issuePrefix/issueCounter가 company 단위로 고정되어 복수 company 분리는 에이전트/토큰/운영 설정 복제를 유발한다. 단일 company 아래 projectId를 필수화하면 기존 DOR 키를 유지하면서도 필터링/집계/리드 관리가 가능하다.
 - **상태**: 완료
 - **참조**: `.claude/rules/paperclip-policy.md`, `.claude/integrations/paperclip.md`, `DOR-18`, `DOR-19`
+
+## AD-007: DOR-5 피벗 — 모니터링 UX를 Paperclip 플러그인(doro-office)으로 확장
+- **일시**: 2026-04-11
+- **결정**:
+  1. 기존 `scripts/hermes_monitor.py` + `scripts/hermes_status.py` + Slack Webhook + CLI는 **데이터 레이어로 유지**.
+  2. 시각화 레이어를 Paperclip 플러그인 `@dororong/doro-office`로 **추가**. 각 에이전트를 도로롱 캐릭터로 표현, idle/working/error/sleeping/waiting 5상태 CSS keyframes 애니메이션.
+  3. 스택: React 19 + TypeScript + Vite + Zustand 5 + Tailwind CSS 4 + SVG + `@paperclipai/plugin-sdk v2026.403.0`. Canvas/Framer Motion/Router 배제.
+  4. 캐릭터 IP는 2차 창작 비영리 범위로 사용 (사용자 지침). 기본 스킨=도로롱, 스킨 로더는 MVP-2에서 1급 기능으로 탑재.
+  5. 배포 경로: 1순위 Paperclip plugin, 2순위 Tauri 2 래퍼(같은 SPA 재사용). Tauri는 MVP-3에서 필요성 판단 후 결정.
+  6. 구현 단계: MVP-0(스켈레톤) → MVP-1(도로롱 + 상태머신) → MVP-2(오피스 + 스킨 로더) → MVP-3(실시간 + 타임라인 + 위젯 + (조건부)Tauri).
+  7. 선행 기술 검증 4건 (React/Tailwind 호환, worker FS capability, dev 루프, widget 권한)을 MVP-0 착수 전에 선행 처리.
+- **이유**: DOR-5 구현이 기능 요건은 모두 충족했으나 사용자가 기대한 UX(에이전트별 시각 피드백)를 CLI/JSON/Slack 조합으로는 만족시킬 수 없음. Paperclip plugin SDK가 공식 존재하고(v2026.403.0 매칭), 레퍼런스 프로젝트 `pablodelucca/pixel-agents`(MIT) · `WW-AI-Lab/openclaw-office`(MIT, 530 stars)가 거의 동일한 구조를 제공하여 이식 가능.
+- **상태**: 진행 중 (EPIC DOR-21 생성, 선행 검증 DOR-22~25, MVP-0 부모 DOR-26 + child 4건 DOR-27~30, 에셋 소싱 DOR-31 분배 완료)
+- **참조**: `.claude/tmp/dor-5-replan/03-doro-office-plan.md`, `04-decisions-snapshot.md`, `DOR-21`, `DOR-5`(완료), `DOR-17`(완료)
