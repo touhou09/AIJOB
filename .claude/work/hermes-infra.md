@@ -88,4 +88,25 @@
 - **What**: `scripts/hermes_monitor.py`가 Paperclip project 목록과 issue의 `projectId`를 함께 수집해 project별 open/done/blocked/recent KPI를 스냅샷에 저장하고, `scripts/hermes_status.py`에 `projects:` 섹션과 `--project <id|name|urlKey|unassigned>` 필터를 추가했다.
 - **Why**: DOR-18의 project 그룹핑이 적용된 뒤에도 운영자는 전체 합계만 볼 수 있었고 project별 open/done 현황을 다시 API로 따로 조회해야 했다. `/hermes-status`에서 같은 스냅샷으로 project 단위 가시성을 바로 제공해야 운영 흐름이 닫힌다.
 - **Impact**: `python3 scripts/hermes_status.py --refresh`만으로 AIJOB/AivaLink/Hermes Infra별 backlog와 최근 처리량을 즉시 확인할 수 있고, 특정 워크스트림만 보고 싶을 때 `--project aijob`처럼 필터링 가능하다.
-- **Test**: `python3 -m py_compile scripts/hermes_monitor.py scripts/hermes_status.py tests/test_hermes_monitor.py tests/test_hermes_status.py`; `python3 -m unittest tests.test_hermes_monitor tests.test_hermes_status -v`; `python3 scripts/hermes_status.py --refresh`; `python3 scripts/hermes_status.py --refresh --project aijob --json`
+- **Test**: `python3 -m py_compile scripts/hermes_monitor.py scripts/hermes_status.py tests/test_hermes_monitor.py tests.test_hermes_status.py`; `python3 -m unittest tests.test_hermes_monitor tests.test_hermes_status -v`; `python3 scripts/hermes_status.py --refresh`; `python3 scripts/hermes_status.py --refresh --project aijob --json`
+---
+
+## 2026-04-11: DOR-22 Paperclip plugin React/Tailwind preflight 검증 [done]
+- **What**: 설치된 `@paperclipai/server`/`@paperclipai/plugin-sdk` 패키지와 UI 번들을 직접 확인해 host React 19.2.4, host Tailwind 4.1.18, SDK peer React `>=18` 조건을 교차 검증하고 결과를 `docs/doro-office/preflight/01-react-tailwind.md`에 정리했다.
+- **Why**: doro-office를 React 19 + Tailwind 4로 시작하려면 host가 plugin UI에 주입하는 React/ReactDOM bridge와 CSS 레이어가 실제로 같은 major인지 먼저 확인해야 hooks dispatcher mismatch와 utility 충돌 리스크를 피할 수 있다.
+- **Impact**: MVP-0 스캐폴딩은 `react@19`, `react-dom@19`, `tailwindcss@4`를 유지해도 되고, same-document mount 구조 기준 CSS 충돌 방어는 Shadow DOM 대신 Tailwind prefix(`do-`)를 1차 대응으로 채택할 수 있다.
+- **Test**: `npm view @paperclipai/plugin-sdk@2026.403.0 peerDependencies dependencies version dist.tarball --json`; `python3`로 `@paperclipai/server/ui-dist/assets/index-Br2N7xYL.js`에서 `Tn.version="19.2.4"` 및 plugin bridge rewrite 확인; `python3`로 `index-CYurTMty.css`에서 `tailwindcss v4.1.18` 배너 확인
+---
+
+## 2026-04-11: DOR-23 plugin worker filesystem capability 검증 [done]
+- **What**: plugin capability 상수/SDK 타입/worker manager 구현을 직접 확인하고, `definePlugin()` + test harness 기반 더미 worker에서 `node:fs/promises.readFile()`로 `~/AIJOB/.claude/STATE.md`와 `~/.hermes/profiles/devops/STATE.md`를 읽는 실험을 수행해 결과를 `docs/doro-office/preflight/02-worker-fs.md`로 정리했다.
+- **Why**: MVP-2 스킨 로더가 `~/.hermes/skins/`를 직접 읽을 수 있는지, 혹은 capability/샌드박스 제약 때문에 업로드/번들 내장 대안으로 우회해야 하는지 선행 판단이 필요했다.
+- **Impact**: doro-office worker는 전용 filesystem capability 없이도 Node fs 직접 접근이 가능하며, 기술 블로커는 해소됐다. 대신 host 차원 경로 제한이 없으므로 plugin config 기반 base dir + `realpath` allowlist 검증을 자체 구현해야 한다.
+- **Test**: `read_file`로 `@paperclipai/shared/dist/constants.js`, `plugin-sdk/dist/types.d.ts`, `server/dist/services/plugin-worker-manager.js`, `plugin-sdk/dist/worker-rpc-host.d.ts` 확인; `node --input-type=module` 더미 worker 실험으로 project 밖 `~/.hermes/...` 경로 read 성공 확인
+---
+
+## 2026-04-11: [auto] DOR-27 doro-office 플러그인 스켈레톤 초기화 [done]
+- **What**: `plugins/doro-office/`에 Paperclip plugin 패키지 골격을 추가하고 manifest/page/sidebar placeholder, worker 엔트리, Vite 다중 번들(worker/manifest/ui), Tailwind prefix, 패키지 단위 ESLint/TypeScript 설정, 로컬 설치 README를 한 번에 묶었다.
+- **Why**: MVP-0의 다음 단계가 worker bridge와 카드 그리드 구현이므로, 먼저 Paperclip host가 기대하는 manifest/entrypoint 규약과 strict frontend toolchain을 고정해야 후속 UI 작업이 설치 실패나 번들 구조 변경 없이 누적된다.
+- **Impact**: `paperclipai`가 인식 가능한 `@dororong/doro-office` 패키지 뼈대가 저장소에 생겨 DOR-28/29가 동일 경로 위에서 구현을 이어갈 수 있다.
+- **Test**: `npm install`; `npm run lint`; `npm run typecheck`; `npm run build`; `paperclipai plugin list --api-base http://localhost:3100`; `paperclipai plugin install --local /Users/yuseungju/AIJOB/plugins/doro-office --api-base http://localhost:3100` (이미 설치됨 응답으로 로컬 플러그인 등록 상태 재확인)

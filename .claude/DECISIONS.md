@@ -70,4 +70,4 @@
   7. 선행 기술 검증 4건 (React/Tailwind 호환, worker FS capability, dev 루프, widget 권한)을 MVP-0 착수 전에 선행 처리.
 - **이유**: DOR-5 구현이 기능 요건은 모두 충족했으나 사용자가 기대한 UX(에이전트별 시각 피드백)를 CLI/JSON/Slack 조합으로는 만족시킬 수 없음. Paperclip plugin SDK가 공식 존재하고(v2026.403.0 매칭), 레퍼런스 프로젝트 `pablodelucca/pixel-agents`(MIT) · `WW-AI-Lab/openclaw-office`(MIT, 530 stars)가 거의 동일한 구조를 제공하여 이식 가능.
 - **상태**: 진행 중 (EPIC DOR-21 생성, 선행 검증 DOR-22~25, MVP-0 부모 DOR-26 + child 4건 DOR-27~30, 에셋 소싱 DOR-31 분배 완료)
-- **참조**: `.claude/tmp/dor-5-replan/03-doro-office-plan.md`, `04-decisions-snapshot.md`, `DOR-21`, `DOR-5`(완료), `DOR-17`(완료)
+- **참조**: `docs/doro-office/03-doro-office-plan.md`, `docs/doro-office/04-decisions-snapshot.md`, `docs/doro-office/preflight/`, `DOR-21`, `DOR-5`(완료), `DOR-17`(완료)

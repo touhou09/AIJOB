@@ -51,3 +51,6 @@ npm-debug.log*
 # OpenClaw 잔재
 .omc/
 *.cover
+
+# Paperclip probe temp
+.tmp-paperclip/

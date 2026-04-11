@@ -1,0 +1,38 @@
+{
+  "name": "@dororong/doro-office",
+  "version": "0.1.1-widget-test",
+  "private": true,
+  "type": "module",
+  "description": "Paperclip plugin shell for the Doro Office monitoring view.",
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest.js"
+  },
+  "scripts": {
+    "build": "vite build --mode worker && vite build --mode manifest && vite build --mode ui",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "dev:reload": "./scripts/dev-reload.sh"
+  },
+  "dependencies": {
+    "@paperclipai/plugin-sdk": "2026.403.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.1.4",
+    "@types/node": "^24.6.0",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^10.2.0",
+    "globals": "^17.4.0",
+    "tailwindcss": "^4.1.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.58.1",
+    "vite": "^5.4.10",
+    "vitest": "^4.1.4"
+  }
+}
