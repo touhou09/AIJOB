@@ -1,5 +1,23 @@
 import type { Agent } from '@paperclipai/plugin-sdk';
 
+export type DororongVisualState = 'idle' | 'working' | 'error' | 'sleeping';
+
+export type AgentIssueSnapshot = {
+  id: string;
+  identifier: string;
+  title: string;
+  status: 'todo' | 'in_progress' | 'in_review' | 'blocked';
+  updatedAt: string;
+};
+
+export type DororongPresentation = {
+  visualState: DororongVisualState;
+  bubbleText: string;
+  statusText: string;
+  fallbackReason: 'issue' | 'title' | 'default';
+  currentIssue: AgentIssueSnapshot | null;
+};
+
 export type AgentSnapshot = {
   id: string;
   name: string;
@@ -9,6 +27,28 @@ export type AgentSnapshot = {
 };
 
 export type AgentRosterSource = 'initial' | 'poll' | 'refresh';
+
+export type SkinSource = 'builtin' | 'custom';
+
+export type SkinStateAssets = Partial<Record<DororongVisualState, string>>;
+
+export type SkinMetadata = {
+  id: string;
+  name: string;
+  source: SkinSource;
+  manifestPath: string | null;
+  directoryPath: string | null;
+  stateAssets: SkinStateAssets;
+  availableStates: DororongVisualState[];
+  author?: string;
+  description?: string;
+};
+
+export type SkinCatalog = {
+  selectedSkin: string;
+  skins: SkinMetadata[];
+  warnings: string[];
+};
 
 export type AgentRosterPayload = {
   companyId: string;

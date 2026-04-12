@@ -4,6 +4,7 @@ import type { AgentRosterPoller } from './poller';
 import type { AgentRosterState } from '../shared/types';
 import { createPaperclipAgentsClient } from './paperclip-client';
 import { createAgentRosterPoller } from './poller';
+import { loadAvailableSkins } from './skin-loader';
 
 const POLL_INTERVAL_MS = 1_000;
 const STREAM_CHANNEL_PREFIX = 'agents:';
@@ -83,6 +84,16 @@ const plugin = definePlugin({
       }
 
       return watcher.initialSync;
+    });
+
+    ctx.data.register('office-skins', async () => {
+      const skinCatalog = await loadAvailableSkins();
+      for (const warning of skinCatalog.warnings) {
+        ctx.logger.info('doro-office skipped custom skin manifest', {
+          warning,
+        });
+      }
+      return skinCatalog;
     });
 
     ctx.actions.register('refresh-agent-roster', async (params) => {
