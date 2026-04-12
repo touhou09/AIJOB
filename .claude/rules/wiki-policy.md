@@ -7,9 +7,10 @@
 - 태그는 SCHEMA.md 택소노미에서만 사용
 
 ## 저장 위치
-- Wiki: `~/wiki` (WIKI_PATH)
-- Obsidian Vault: 동일 경로 (OBSIDIAN_VAULT_PATH)
-- Memvid: MCP 서버로 시맨틱 검색
+- Wiki: `~/llm-wiki` (WIKI_PATH)
+- Memvid 인덱스: `~/.memvid_mcp/llm-wiki.mv2` (시맨틱 검색)
+- MCP: `memvid-mcp-server` (Hermes 프로필별 `mcp_servers.memvid` 등록)
+- MECE 디렉토리: specs/ tech/ projects/ people/ streams/ + comparisons/ concepts/ entities/ queries/ raw/
 
 ## ingest 절차
 1. 소스 캡처 → raw/ 저장

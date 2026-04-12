@@ -52,6 +52,15 @@
 - **[DEBT]**: (a) adapter 1-line 패치가 `~/.paperclip/plugins/...` + `~/.npm/_npx/.../hermes-paperclip-adapter/...` 양쪽 npm 관리 디렉토리에 직접 수정됨 — `npm install`/`npx` 캐시 재생성 시 원복 위험. 업스트림 PR #31 머지 추적 필요. (b) `~/.hermes/hermes-agent` 는 `NousResearch/hermes-agent` clone (324 commits behind) — `local.py`/`persistent_shell.py` `expanduser` 패치도 `git pull` 시 날아감. 업스트림 기여 또는 로컬 fork 필요. (c) CEO Slack gateway 경로에서 Paperclip API 인증이 미검증 상태. gateway launchd가 adapterConfig.env를 읽는지 불확실(어댑터 경로와 분리됨) — CEO가 SOUL의 이슈 생성 절차를 Slack run에서 실제로 수행할 때 401 날 수 있음
 ---
 
+## 2026-04-12: v2 파이프라인 full-cycle + 구조 개선 [done]
+- **What**: (1) Phase B archive 21 PR close + 21 git tag 보존 + clean slate (2) v2 retrigger DOR-69~77 단일 스펙 자율 실행 3.5h → 9/9 done (3) 4자 회의 2라운드(CEO/CTO/COO/시니어) → AD-014 합의안 5-step 적용 (4) main에 squash merge 7건 → 2332줄 src + 42 tests (5) 수렴 가드 3중 장치 (Coder delegate_task + Inspector round3 강제ship + CEO 2차 강제ship) (6) 단일 파이프라인 전환 (병렬→직렬, conflict 0%) (7) LLM Wiki 전환 (gbrain PGLite→~/llm-wiki/ + memvid MCP) (8) personal 비서 프로필 신설 + CEO→personal gateway 전환 (9) Obsidian 설치 (10) 에러 0 달성 (gho 토큰, allowlist, memvid dummy key)
+- **Why**: Phase B 자율 실증에서 3대 약점(auto-merge 부재/cross-branch pollution/병렬 PR conflict) + 구조적 멈춤 4회 발견. 병렬 에이전트 PR conflict 27% (AgenticFlict 2026-04 실측). 단일 파이프라인 + QA 즉시 merge로 conflict 구조적 0%. gbrain PGLite는 WASM crash 반복 → memvid(SQLite+FAISS) + 파일시스템으로 교체. CEO/비서 분리로 Slack DM = 개인비서, Paperclip = 파이프라인 전용.
+- **Impact**: 스펙 1건 → DM에서 비서에게 지시 → 자동 파이프라인 (Planner 직렬 task → Inspector → Coder worktree → QA merge → 다음 task) → main에 코드 반영. 사람 개입 0 목표. 에이전트 8개 (personal + ceo + planner + inspector + coder + qa + devops + monitor).
+- **Test**: v2 run DOR-69~77 전부 done, main 8 commits, tsc 0 error, 42 tests pass, build 13.95KB. 단일 파이프라인 규칙 6개 SOUL 반영 확인. 에러/경고 0건. **미검증**: 단일 파이프라인 + QA auto-merge + Planner 재wakeup 체인의 실 동작 (다음 스펙 투입 시 첫 실증)
+- **Trap**: (1) gbrain PGLite WASM crash 2회 → DB 재init → import 중 또 crash → frontmatter YAML 파싱 에러 → 결국 포기하고 memvid로 전환 (2) hermes-paperclip-adapter 패치가 2사본(~/.paperclip/plugins + ~/.npm/_npx) 존재 → 1사본만 패치해서 Paperclip 재기동해도 안 먹음 (3) Hermes prompt_builder.py exfil_curl 정규식이 SOUL 통째 차단 → PCK alias 우회 (4) DOR-74 5라운드 blocked 루프 → 수렴 가드 부재가 원인 → 3중 장치로 해결 (5) 병렬 6 task → main merge 시 conflict 폭발 → 단일 파이프라인으로 전환 (6) DevOps SOUL 0줄 사고 (sed 치환 중 파일 날아감) → 세션 내 기억으로 재구성
+- **[DEBT]**: (a) hermes-paperclip-adapter + hermes-agent 로컬 패치 3건 (npm/git pull 시 원복) (b) CEO SOUL의 스펙 저장 절차가 비서 SOUL로 이관됐지만 CEO에도 잔존 — 정리 필요 (c) doro-monitor README Hard 완료 조건 #2 (설치/지원 섹션) 미충족 (d) main의 tsc 타입 경고 잔존 (런타임 영향 0, 테스트 통과)
+---
+
 ## 2026-04-11: CEO Slack gateway 연결 + OpenClaw 좀비 제거 [done]
 - **What**: CEO 프로필에 기존 Slack Ame 봇 재사용 (root `~/.hermes/.env`의 `SLACK_BOT_TOKEN`/`SLACK_APP_TOKEN`을 `~/.hermes/profiles/ceo/.env`에 복사). config.yaml에 `platform_toolsets: slack` 추가. `ceo gateway install` 로 launchd 등록 (`ai.hermes.gateway-ceo`). 기존 pairing 실패 원인이었던 openclaw cron 2줄(`*/2 * * * * openclaw-gateway-keepalive.sh`, `0 9 * * * openclaw-update-check.sh`) 제거
 - **Why**: CEO 티키타카를 Mac 터미널 고정에서 해방. 옵션 B(기존 봇 재사용) 선택 — 새 Telegram 봇 생성 대비 즉시 가능. 단일 Slack 앱이라 향후 Monitor 알림 등 다른 메시징은 Phase C에서 별도 앱 필요

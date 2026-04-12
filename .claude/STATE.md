@@ -3,14 +3,13 @@
 > 최종 업데이트: 2026-04-12
 
 ## 현재 단계
-- **Harness v2 "자율 종결" 메커니즘 적용 완료** (AD-014, AD-015): worktree 격리 + integrator-loop skill + pollution 게이트 + CEO 보고 포맷 + SLO. Phase 1 = dry-run only
-- **Phase B 자율 검증 완료** (DOR-39~68 30건 5시간 자율 실행, 22 feature 브랜치 + 21 PR 생성. merge는 0건)
-- **Dispatch 모델**: 이벤트 기반 (`queueIssueAssignmentWakeup`). 주기 heartbeat 폐기 (AD-012)
-- **Adapter 버그 2건 로컬 패치**: hermes-paperclip-adapter env resolve + hermes-agent expanduser (AD-013, [DEBT] 누적)
-- 다음 검증 단계: 새 스펙 1건 투입 → worktree 표준 준수 / pollution 게이트 동작 / integrator-loop dry-run 실행 / CEO 보고 포맷 적용 동시 관찰
-- Merge flip 조건: Inspector pollution 게이트 **1주 무사고** + 유저 명시 승인 (AD-014)
-- 기존 CTO 루프 구조 + DOR-21~38 doro-office 작업은 전량 폐기 (AD-009 참조)
-- CEO 만 Slack `@ame` 직결, 나머지 6개는 Paperclip adapter 경로 (이벤트 wakeup)
+- **단일 파이프라인 + 자율 비서 구조 완성**: DM `@ame` = personal 비서 (자율 실행, 승인 불필요), Paperclip = 직렬 파이프라인 (Planner→Inspector→Coder→QA→merge→다음 task)
+- **v2 full-cycle 실증 완료**: DOR-69~77 9건 done, main 8 commits (2332줄 src + 42 tests + build 13.95KB)
+- **단일 파이프라인**: 병렬→직렬 전환. conflict 구조적 0%. QA pass → 즉시 squash merge → Planner 재wakeup
+- **수렴 가드 3중**: Coder delegate_task(3회차) + Inspector PASS_WITH_NITS(round 3) + CEO 2차 강제ship
+- **지식층**: ~/llm-wiki/ + Memvid MCP (gbrain PGLite 폐기)
+- **에러/경고**: 0건 (gho 토큰 + allowlist + memvid dummy key)
+- **[DEBT]**: adapter/hermes-agent 로컬 패치 3건, README Hard#2 미충족, main tsc 경고 잔존
 
 ## 인프라 현황
 
@@ -88,22 +87,26 @@ AIJOB/.claude/
 | 7. Monitor drift 감지 (cron) | 미검증 | cron 미등록 |
 | 8. DevOps 드림사이클 | 미검증 | cron 미등록 |
 
-## 알려진 미검증 가정
-- CEO Slack gateway(launchd) 프로세스에 `PAPERCLIP_API_KEY`가 전달되는지 — adapterConfig.env는 Paperclip adapter 경로에만 주입됨. CEO는 Slack 경로와 adapter 경로가 분리되어 있어 이슈 생성 curl이 실제로 성공할지 불확실
-- Coder SOUL이 가정하는 `~/workspace/doro-monitor` feature 브랜치 흐름 (존재/권한)
-- Planner 첫 run은 SOUL 차단 상태(exfil_curl)로 돌아서 promptTemplate만으로 분해 수행. 다음 run부터 패치된 SOUL 로딩될 예정이지만 결과 quality 비교 필요
+## 미검증
+- 단일 파이프라인 + QA auto-merge + Planner 재wakeup 체인의 실 E2E (다음 스펙 투입 시 첫 실증)
+- personal 비서의 자율 스펙 생성 → Paperclip 핸드오프 실 동작
+- README Hard 완료 조건 #2 (설치/지원 섹션) — v2 run에서 미충족 상태로 종료
 
-## 다음 작업 (순서대로)
-1. Planner/Inspector 현재 러닝 세션 완료 대기 → Inspector 판정 결과 + 코멘트 확인
-2. DOR-41 첫 task로 Coder 실동작 실증 (assignee 재할당 시점)
-3. CEO Slack 경로에서 `PAPERCLIP_API_KEY` 접근 가능한지 확인. 불가 시 CEO gateway plist에 env 추가 (`~/Library/LaunchAgents/ai.hermes.gateway-ceo.plist`)
-4. Planner SOUL이 이번에는 제대로 로딩되는지 다음 wakeup에서 확인 (`~/.hermes/profiles/planner/logs/agent.log` 에 `exfil_curl` 경고 안 뜨면 OK)
-5. `~/workspace/doro-monitor` 상태 점검 (Coder 실구현 전제)
-6. E2E 1회 완주 시 → DOR-39~45 정리 + 새 스펙으로 2회차 실증
-7. 업스트림 PR 추적: hermes-paperclip-adapter #31 머지 여부, `NousResearch/hermes-agent` expanduser 관련 이슈 있는지 스캔
+## 다음 작업
+1. personal 비서 DM 실증 — "이거 만들어" → 자율 스펙 → 파이프라인 시작 확인
+2. 단일 파이프라인 E2E 관찰 — task 1개씩 직렬 실행 + QA merge + Planner 재wakeup
+3. main tsc 타입 경고 정리 (런타임 영향 0이지만 clean build 목표)
+4. 업스트림 PR 추적: hermes-paperclip-adapter #31, NousResearch/hermes-agent expanduser
 
 ## Last Session (2026-04-12)
-- 파이프라인 연결 복구: adapter env resolve 버그 패치 + per-agent API key 발급 + SOUL/STATE/README 개정 + 이벤트 dispatch 체인 E2E 실증 (DOR-39~45)
-- 코드 변경: `hermes-paperclip-adapter/dist/server/execute.js` (2 사본), `hermes-agent/tools/environments/{local,persistent_shell}.py`, `~/.hermes/profiles/{ceo,planner}/SOUL.md`, `~/.hermes/profiles/ceo/STATE.md`, `~/gbrain/projects/doro-monitor/README.md`
-- 파이프라인 생성 이슈: DOR-39 (CEO→Planner 핸드오프 실증용), DOR-40~45 (Planner 자동 분해 결과)
-- 문서: work/harness-v2.md append, DECISIONS.md (AD-012, AD-013), STATE.md (이 파일)
+대규모 세션. 주요 작업:
+1. adapter env resolve 버그 + hermes expanduser 패치 → per-agent API key 7개 발급 → 이벤트 dispatch E2E 실증
+2. Phase B archive (21 tag + phase-b-archive.md) → 21 PR close + 브랜치 삭제 → clean slate
+3. v2 retrigger DOR-69~77 → 9/9 done → main squash merge 7건 (2332줄 src)
+4. 4자 회의 2라운드 → AD-014/015 합의 (worktree + pollution + integrator + SLO)
+5. 수렴 가드 3중 장치 (Coder delegate + Inspector round3 + CEO 2차)
+6. 병렬→단일 파이프라인 전환 (AgenticFlict 리서치 기반, conflict 0%)
+7. gbrain PGLite → ~/llm-wiki/ + Memvid MCP 전환
+8. personal 비서 프로필 신설 → CEO→personal gateway 전환 → 자율 실행 (approvals: off)
+9. Obsidian 설치 + #ceo 채널 생성 + 유저 초대
+10. 에러 0 달성 (gho 토큰 + allowlist + memvid dummy key) + SOUL 7개 정비 (150줄, stale 경로, exfil clean)
