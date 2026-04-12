@@ -2,7 +2,7 @@ import type { Agent } from '@paperclipai/plugin-sdk';
 import type { AgentRosterPayload, AgentRosterSource, AgentRosterState, AgentSnapshot } from '../shared/types';
 import type { PaperclipAgentsClient } from './paperclip-client';
 
-const DEFAULT_POLL_INTERVAL_MS = 10_000;
+const DEFAULT_POLL_INTERVAL_MS = 1_000;
 
 type UpdateCallback = (payload: AgentRosterState) => void;
 

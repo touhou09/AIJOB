@@ -1,11 +1,11 @@
 {
   "name": "@dororong/doro-office",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "description": "Paperclip plugin shell for the Doro Office monitoring view.",
   "paperclipPlugin": {
-    "manifest": "./dist/manifest-v0.1.2.js"
+    "manifest": "./dist/manifest-v0.1.4.js"
   },
   "scripts": {
     "build": "vite build --mode worker && vite build --mode manifest && vite build --mode ui",

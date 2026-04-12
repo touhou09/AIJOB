@@ -5,7 +5,7 @@ import type { AgentRosterState } from '../shared/types';
 import { createPaperclipAgentsClient } from './paperclip-client';
 import { createAgentRosterPoller } from './poller';
 
-const POLL_INTERVAL_MS = 10_000;
+const POLL_INTERVAL_MS = 1_000;
 const STREAM_CHANNEL_PREFIX = 'agents:';
 
 type CompanyWatcher = {

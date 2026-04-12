@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-04-11: CTO 리뷰 루프 진단 + 엄격도 조정 설계 [in-progress]
+- **What**: DOR-33 README 6회 반송 패턴 진단 + 2026-04 기준 AI code review 업계 리서치 + 3가지 조정안(A 심각도 3-tier / B skip 확대 / C 3단 에스컬레이션) 도출
+- **Why**: 현재 CTO는 2단계 판정(PASS/CHANGES_REQUESTED/BLOCKED)에 문서 전용 변경도 풀 10항목 체크리스트를 동일 적용. 단일 README 티켓에 반나절 + `bash -n`/lint/typecheck/test/build/plugin install/metadata 재검증 6회 반복. 2026년 업계 표준은 Anthropic Code Review의 Important/Nit/Pre-existing 3-tier, Qodo의 "security·correctness만 블록", ADK의 수렴 기반 루프 종료
+- **Impact**: doro-office EPIC 전체 속도. DOR-34는 DOR-33 통과 대기로 `blocked`. 설계 미반영 시 이후 모든 문서/UI 티켓이 동일 루프 진입
+- **Test**: 현재 `plugins/doro-office/README.md`를 `bash -n`으로 검증 — syntax error 0, `${PAPE...EN}` placeholder 0, 하드코딩 `/Users/yuseungju/` 경로 0. 실제로는 PASS 가능 상태. CTO 리뷰 큐는 현재 비어 있고 frontend가 방금 in_review로 재핸드오프
+- **Trap**: 초안 "3회 후 user 에스컬레이션" 제안 → user가 "자동개발 중단 문제" 지적 → orchestrator를 중재자로 두고 수렴 체크(같은 지적 2회 반복 시만) + 최대 5라운드 + skip-cto-review 자동 강제 경로로 수정. user 개입은 최후 5% 미만으로 설계
+- **Next**: A/B/C 적용 범위 결정 → `cto-review-checklist.md` + `paperclip-policy.md` 개정 → DOR-33 수동 PASS 또는 개정 후 재처리. 가장 가벼운 변경은 B(skip 확대) 한 줄 추가, 가장 구조적 변경은 C(에스컬레이션). 사용자 선택 대기
+- **[DEBT]**: DOR-33 여전히 in_review 상태로 다음 라운드 대기 중. 설계 결정 전에 CTO가 자력 PASS 낼 수도 있음 — 결정 전 수동 개입 금지
+---
+
+## 2026-04-11: [auto] DOR-34 doro-office MVP-3 실시간 반영과 widget surface 확장 [done]
+- **What**: worker/UI 자동 갱신 주기를 5초로 낮추고 `OfficePage`에 status diff 기반 recent event timeline을 추가했으며, `PulseWidget` dashboard widget과 `ui.dashboardWidget.register` slot을 구현했다.
+- **Why**: DOR-34 완료 조건은 1초 이내에 가까운 빠른 반영, 최근 이벤트 표시, dashboard widget 노출, 운영 문서 정리를 함께 요구했다. stream bridge에 의존하지 않고 plugin-only surface 안에서 이를 닫는 편이 현재 Paperclip 환경과 가장 잘 맞는다.
+- **Impact**: `/office` 페이지는 7석 오피스 레이아웃 + timeline + overflow roster를 함께 보여 주고, dashboard에는 working/error/idle 요약 위젯이 추가된다. stream 미지원 환경에서도 5초 polling fallback으로 상태 가시성이 유지된다.
+- **Test**: `npm run lint`; `npm run typecheck`; `npm run test` (28 tests); `npm run build`; `DELETE /api/plugins/dororong.doro-office?purge=true`; `POST /api/plugins/install`; `GET /api/plugins/ui-contributions`; `GET /api/plugins/dororong.doro-office`.
+- **Next**: CTO 리뷰 결과에 따라 widget/timeline copy 또는 Tauri 판단 문구만 미세 조정 가능.
+---
+
 ## 2026-04-07~09: OpenClaw → Hermes+Paperclip 전환 [done]
 - **What**: 에이전트 런타임을 OpenClaw에서 Hermes Agent v0.8.0 + Paperclip으로 전면 전환
 - **Why**: Hermes가 프로필/게이트웨이/cron/메모리를 네이티브 지원, Paperclip이 이슈 기반 핸드오프로 에이전트 간 조율. OpenClaw는 에이전트 간 통신 제약 + 학습 루프 부재

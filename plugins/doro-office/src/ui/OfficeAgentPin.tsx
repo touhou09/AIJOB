@@ -60,8 +60,8 @@ export function OfficeAgentPin({ agent, seatLabel, showSpeechBubble, emphasizeIs
   return (
     <article
       aria-label={`${agent.name} 좌석 카드`}
-      className={`do:w-44 do:rounded-[1.75rem] do:bg-white/92 do:p-3 do:shadow-lg do:ring-1 do:backdrop-blur ${
-        shouldHighlight ? 'do:ring-rose-300' : tone.aura
+      className={`do:w-44 do:rounded-[1.75rem] do:bg-white/92 do:p-3 do:shadow-lg do:ring-1 do:backdrop-blur do:transition do:duration-700 do:ease-out ${
+        shouldHighlight ? 'do:scale-[1.02] do:ring-rose-300' : tone.aura
       }`}
     >
       <p className="do:text-[11px] do:font-semibold do:uppercase do:tracking-[0.18em] do:text-orange-500">{seatLabel}</p>

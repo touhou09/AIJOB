@@ -32,6 +32,28 @@ function createAgent(name: string, status: 'idle' | 'active' = 'idle') {
 }
 
 describe('createAgentRosterPoller', () => {
+  it('uses a 1 second polling cadence by default', async () => {
+    let capturedInterval = 0;
+    const poller = createAgentRosterPoller({
+      companyId,
+      client: {
+        listAgents: async () => [createAgent('Alpha', 'idle')],
+      },
+      onUpdate: () => {},
+      now: () => new Date('2026-04-11T00:00:00.000Z'),
+      setIntervalFn: ((callback: () => void, delay: number) => {
+        void callback;
+        capturedInterval = delay;
+        return 0 as unknown as ReturnType<typeof setInterval>;
+      }) as typeof setInterval,
+      clearIntervalFn: () => {},
+    });
+
+    await poller.start();
+
+    expect(capturedInterval).toBe(1_000);
+  });
+
   it('publishes a sorted initial payload', async () => {
     const updates: Array<{ agents: Array<{ name: string }>; source: string }> = [];
     const poller = createAgentRosterPoller({
