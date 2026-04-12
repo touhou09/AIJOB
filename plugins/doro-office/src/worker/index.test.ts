@@ -74,6 +74,26 @@ describe('doro-office worker bridge', () => {
     expect(roster.agents).toEqual([]);
   });
 
+  it('returns the builtin skin catalog for UI consumers', async () => {
+    const skinCatalog = await harness.getData<{
+      selectedSkin: string;
+      skins: Array<{
+        id: string;
+        source: string;
+      }>;
+      warnings: string[];
+    }>('office-skins', {});
+
+    expect(skinCatalog.selectedSkin).toBe('dororong');
+    expect(skinCatalog.skins[0]).toEqual(
+      expect.objectContaining({
+        id: 'dororong',
+        source: 'builtin',
+      }),
+    );
+    expect(Array.isArray(skinCatalog.warnings)).toBe(true);
+  });
+
   it('refreshes the roster through action bridge', async () => {
     const roster = await harness.performAction<{
       companyId: string;
