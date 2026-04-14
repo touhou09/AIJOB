@@ -2,12 +2,15 @@ import { definePlugin, runWorker } from '@paperclipai/plugin-sdk';
 import type { PluginContext } from '@paperclipai/plugin-sdk';
 import type { AgentRosterPoller } from './poller';
 import type { AgentRosterState } from '../shared/types';
+import { DEFAULT_SCENE_LAYOUT, normalizeSceneLayout, type SceneLayoutInput } from '../shared/scene-layout';
 import { createPaperclipAgentsClient } from './paperclip-client';
 import { createAgentRosterPoller } from './poller';
 import { loadAvailableSkins } from './skin-loader';
 
 const POLL_INTERVAL_MS = 1_000;
 const STREAM_CHANNEL_PREFIX = 'agents:';
+const SCENE_LAYOUT_NAMESPACE = 'scene-layout';
+const SCENE_LAYOUT_STATE_KEY = 'layout';
 
 type CompanyWatcher = {
   poller: AgentRosterPoller;
@@ -29,6 +32,20 @@ function getMissingCompanyPayload(): AgentRosterState {
     source: 'initial',
     error: 'companyId is required',
   };
+}
+
+function getSceneLayoutScope(companyId: string) {
+  return {
+    scopeKind: 'company' as const,
+    scopeId: companyId,
+    namespace: SCENE_LAYOUT_NAMESPACE,
+    stateKey: SCENE_LAYOUT_STATE_KEY,
+  };
+}
+
+async function loadSceneLayout(ctx: PluginContext, companyId: string) {
+  const stored = (await ctx.state.get(getSceneLayoutScope(companyId))) as SceneLayoutInput | null;
+  return stored ? normalizeSceneLayout(stored) : DEFAULT_SCENE_LAYOUT;
 }
 
 function ensureCompanyWatcher(ctx: PluginContext, companyId: string) {
@@ -96,6 +113,14 @@ const plugin = definePlugin({
       return skinCatalog;
     });
 
+    ctx.data.register('scene-layout', async (params) => {
+      const companyId = typeof params.companyId === 'string' ? params.companyId : null;
+      if (!companyId) {
+        return DEFAULT_SCENE_LAYOUT;
+      }
+      return loadSceneLayout(ctx, companyId);
+    });
+
     ctx.actions.register('refresh-agent-roster', async (params) => {
       const companyId = typeof params.companyId === 'string' ? params.companyId : null;
 
@@ -105,6 +130,53 @@ const plugin = definePlugin({
 
       const watcher = ensureCompanyWatcher(ctx, companyId);
       return watcher.poller.runNow('refresh');
+    });
+
+    ctx.actions.register('save-scene-layout', async (params) => {
+      const companyId = typeof params.companyId === 'string' ? params.companyId : null;
+      if (!companyId) {
+        throw new Error('companyId is required');
+      }
+
+      const layoutInput = typeof params.layout === 'object' && params.layout ? (params.layout as SceneLayoutInput) : {};
+      const currentLayout = await loadSceneLayout(ctx, companyId);
+      const mergedLayout = normalizeSceneLayout({
+        ...currentLayout,
+        ...layoutInput,
+        backgroundImage: layoutInput.backgroundImage !== undefined ? layoutInput.backgroundImage : currentLayout.backgroundImage,
+        seatLayout: layoutInput.seatLayout
+          ? currentLayout.seatLayout.map((seat) => {
+              const patch = layoutInput.seatLayout?.find((nextSeat) => nextSeat.id === seat.id);
+              if (!patch) {
+                return seat;
+              }
+
+              return {
+                ...seat,
+                ...patch,
+                position: {
+                  ...seat.position,
+                  ...patch.position,
+                },
+                size: {
+                  ...seat.size,
+                  ...patch.size,
+                },
+                visibleOn: patch.visibleOn ?? seat.visibleOn,
+                nameplate: {
+                  ...seat.nameplate,
+                  ...patch.nameplate,
+                  position: {
+                    ...seat.nameplate.position,
+                    ...patch.nameplate?.position,
+                  },
+                },
+              };
+            })
+          : currentLayout.seatLayout,
+      });
+      await ctx.state.set(getSceneLayoutScope(companyId), mergedLayout);
+      return mergedLayout;
     });
   },
   async onHealth() {

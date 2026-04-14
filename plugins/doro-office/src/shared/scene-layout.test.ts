@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SCENE_LAYOUT, normalizeSceneLayout } from './scene-layout';
+import { DEFAULT_SCENE_LAYOUT, normalizeSceneLayout, sanitizeSceneBackgroundImage } from './scene-layout';
 
 describe('scene layout schema', () => {
   it('defines a default persisted layout with background and seven seats', () => {
@@ -38,5 +38,19 @@ describe('scene layout schema', () => {
       },
     });
     expect(layout.seatLayout[0]).toMatchObject(DEFAULT_SCENE_LAYOUT.seatLayout[0]);
+  });
+
+  it('rejects external background image URLs and keeps the default background', () => {
+    expect(sanitizeSceneBackgroundImage('paperclip://office.png')).toBe('paperclip://office.png');
+    expect(sanitizeSceneBackgroundImage('https://attacker.example/track.png')).toBeNull();
+    expect(sanitizeSceneBackgroundImage('javascript:alert(1)')).toBeNull();
+    expect(sanitizeSceneBackgroundImage('paperclip://office.png), url(https://attacker.example/track.png')).toBeNull();
+    expect(sanitizeSceneBackgroundImage('paperclip://office background.png')).toBeNull();
+
+    const layout = normalizeSceneLayout({
+      backgroundImage: 'https://attacker.example/track.png',
+    });
+
+    expect(layout.backgroundImage).toBeNull();
   });
 });

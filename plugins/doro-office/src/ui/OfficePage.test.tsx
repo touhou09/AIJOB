@@ -4,6 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentRosterState, AgentSnapshot } from '../shared/types';
+import { DEFAULT_SCENE_LAYOUT } from '../shared/scene-layout';
 import { useOfficeStore } from './store';
 
 const usePluginDataMock = vi.fn();
@@ -38,21 +39,53 @@ const refreshedRoster: AgentRosterState = {
   source: 'refresh',
 };
 
+const persistedSceneLayout = {
+  ...DEFAULT_SCENE_LAYOUT,
+  backgroundImage: 'paperclip://persisted-office.png',
+  seatLayout: DEFAULT_SCENE_LAYOUT.seatLayout.map((seat, index) =>
+    index === 0
+      ? {
+          ...seat,
+          position: { x: '20%', y: '30%' },
+          layer: 4,
+          nameplate: {
+            position: { x: '20%', y: '38%' },
+            layer: 6,
+          },
+        }
+      : seat,
+  ),
+};
+
 describe('OfficePageView', () => {
   let container: HTMLDivElement;
   let root: Root;
   let refreshAction: ReturnType<typeof vi.fn>;
+  let saveSceneLayoutAction: ReturnType<typeof vi.fn>;
 
   async function renderOfficePage(options?: {
     data?: AgentRosterState;
     loading?: boolean;
     error?: Error | null;
     mode?: 'page' | 'sidebar';
+    sceneLayout?: typeof persistedSceneLayout;
+    sceneLayoutError?: Error | null;
+    sceneLayoutLoading?: boolean;
   }) {
-    usePluginDataMock.mockReturnValue({
-      data: options?.data ?? roster,
-      error: options?.error ?? null,
-      loading: options?.loading ?? false,
+    usePluginDataMock.mockImplementation((key: string) => {
+      if (key === 'scene-layout') {
+        return {
+          data: options?.sceneLayout ?? persistedSceneLayout,
+          error: options?.sceneLayoutError ?? null,
+          loading: options?.sceneLayoutLoading ?? false,
+        };
+      }
+
+      return {
+        data: options?.data ?? roster,
+        error: options?.error ?? null,
+        loading: options?.loading ?? false,
+      };
     });
 
     const { OfficePageView } = await import('./OfficePage');
@@ -72,7 +105,14 @@ describe('OfficePageView', () => {
     useOfficeStore.getState().reset();
 
     refreshAction = vi.fn().mockResolvedValue(refreshedRoster);
-    usePluginActionMock.mockReturnValue(refreshAction);
+    saveSceneLayoutAction = vi.fn().mockImplementation(async ({ layout }) => layout);
+    usePluginActionMock.mockImplementation((key: string) => {
+      if (key === 'save-scene-layout') {
+        return saveSceneLayoutAction;
+      }
+
+      return refreshAction;
+    });
 
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -147,6 +187,13 @@ describe('OfficePageView', () => {
     expect(container.querySelectorAll('article[aria-label$="좌석 카드"]').length).toBe(0);
 
     await renderOfficePage({
+      data: roster,
+      sceneLayoutLoading: true,
+    });
+    expect(container.innerHTML).toContain('do:animate-pulse');
+    expect(container.querySelectorAll('article[aria-label$="좌석 카드"]').length).toBe(0);
+
+    await renderOfficePage({
       error: new Error('network failed'),
       data: {
         companyId: 'company-1',
@@ -163,7 +210,9 @@ describe('OfficePageView', () => {
     await renderOfficePage();
 
     expect(usePluginDataMock).toHaveBeenCalledWith('agent-roster', { companyId: 'company-1' });
+    expect(usePluginDataMock).toHaveBeenCalledWith('scene-layout', { companyId: 'company-1' });
     expect(usePluginActionMock).toHaveBeenCalledWith('refresh-agent-roster');
+    expect(usePluginActionMock).toHaveBeenCalledWith('save-scene-layout');
     expect(refreshAction).not.toHaveBeenCalled();
     expect(container.textContent).toContain('Agent 1');
 
@@ -178,5 +227,110 @@ describe('OfficePageView', () => {
     expect(container.textContent).toContain('running');
     expect(container.textContent).toContain('Agent 1');
     expect(container.textContent).toContain('idle → running');
+  });
+
+  it('renders scene editor controls and persists background plus nameplate layout edits', async () => {
+    await renderOfficePage();
+
+    const settingsTab = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('표시 옵션'));
+
+    await act(async () => {
+      settingsTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('scene editor');
+    expect(container.textContent).toContain('배경 이미지');
+    expect(container.textContent).toContain('nameplate');
+    expect(container.textContent).toContain('layer');
+
+    const backgroundInput = container.querySelector('input[name="backgroundImage"]') as HTMLInputElement | null;
+    const backgroundApply = container.querySelector('button[aria-label="scene layout 저장"]');
+    const nameplateLayerInput = container.querySelector('input[name="desk-1-nameplate-layer"]') as HTMLInputElement | null;
+
+    expect(backgroundInput?.value).toBe('paperclip://persisted-office.png');
+    expect(nameplateLayerInput?.value).toBe('6');
+
+    await act(async () => {
+      if (backgroundInput) {
+        backgroundInput.value = 'paperclip://sunset-office.png';
+        backgroundInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      if (nameplateLayerInput) {
+        nameplateLayerInput.value = '9';
+        nameplateLayerInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      backgroundApply?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(saveSceneLayoutAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyId: 'company-1',
+        layout: expect.objectContaining({
+          backgroundImage: 'paperclip://sunset-office.png',
+          seatLayout: expect.arrayContaining([
+            expect.objectContaining({
+              id: 'desk-1',
+              nameplate: expect.objectContaining({ layer: 9 }),
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it('drags a seat on the office canvas and persists the updated scene layout', async () => {
+    await renderOfficePage();
+
+    const dragHandle = container.querySelector('button[aria-label="Support desk 좌석 드래그 핸들"]');
+    expect(dragHandle).toBeTruthy();
+
+    await act(async () => {
+      dragHandle?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 120, clientY: 180 }));
+      window.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 260, clientY: 260 }));
+      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: 260, clientY: 260 }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(saveSceneLayoutAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyId: 'company-1',
+        layout: expect.objectContaining({
+          seatLayout: expect.arrayContaining([
+            expect.objectContaining({
+              id: 'desk-1',
+              position: expect.not.objectContaining({ x: '20%', y: '30%' }),
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it('does not render persisted external background image URLs', async () => {
+    await renderOfficePage({
+      sceneLayout: {
+        ...persistedSceneLayout,
+        backgroundImage: 'https://attacker.example/track.png',
+      },
+    });
+
+    expect(container.querySelector('[aria-label="scene background image"]')).toBeNull();
+    expect(container.innerHTML).not.toContain('https://attacker.example/track.png');
+  });
+
+  it('does not render background images from malformed paperclip URLs', async () => {
+    await renderOfficePage({
+      sceneLayout: {
+        ...persistedSceneLayout,
+        backgroundImage: 'paperclip://office.png), url(https://attacker.example/track.png',
+      },
+    });
+
+    expect(container.querySelector('[aria-label="scene background image"]')).toBeNull();
+    expect(container.innerHTML).not.toContain('attacker.example');
   });
 });

@@ -94,6 +94,139 @@ describe('doro-office worker bridge', () => {
     expect(Array.isArray(skinCatalog.warnings)).toBe(true);
   });
 
+  it('persists and reloads the scene layout through worker state', async () => {
+    const initialLayout = await harness.getData<{
+      backgroundImage: string | null;
+      seatLayout: Array<{
+        id: string;
+        position: { x: string; y: string };
+        nameplate: { position: { x: string; y: string }; layer: number };
+      }>;
+    }>('scene-layout', { companyId });
+
+    expect(initialLayout.backgroundImage).toBeNull();
+    expect(initialLayout.seatLayout).toHaveLength(7);
+
+    const savedLayout = await harness.performAction<{
+      backgroundImage: string | null;
+      seatLayout: Array<{
+        id: string;
+        position: { x: string; y: string };
+        layer: number;
+        nameplate: { position: { x: string; y: string }; layer: number };
+      }>;
+    }>('save-scene-layout', {
+      companyId,
+      layout: {
+        backgroundImage: 'paperclip://scene-editor.png',
+        seatLayout: [
+          {
+            id: 'desk-1',
+            position: { x: '28%', y: '36%' },
+            layer: 5,
+            nameplate: { position: { x: '28%', y: '43%' }, layer: 7 },
+          },
+        ],
+      },
+    });
+
+    expect(savedLayout.backgroundImage).toBe('paperclip://scene-editor.png');
+    expect(savedLayout.seatLayout[0]).toMatchObject({
+      id: 'desk-1',
+      position: { x: '28%', y: '36%' },
+      layer: 5,
+      nameplate: { position: { x: '28%', y: '43%' }, layer: 7 },
+    });
+
+    const patchedLayout = await harness.performAction<{
+      backgroundImage: string | null;
+      seatLayout: Array<{
+        id: string;
+        position: { x: string; y: string };
+        layer: number;
+        nameplate: { position: { x: string; y: string }; layer: number };
+      }>;
+    }>('save-scene-layout', {
+      companyId,
+      layout: {
+        seatLayout: [
+          {
+            id: 'desk-1',
+            nameplate: { layer: 9 },
+          },
+        ],
+      },
+    });
+
+    expect(patchedLayout.backgroundImage).toBe('paperclip://scene-editor.png');
+    expect(patchedLayout.seatLayout[0]).toMatchObject({
+      id: 'desk-1',
+      position: { x: '28%', y: '36%' },
+      layer: 5,
+      nameplate: { position: { x: '28%', y: '43%' }, layer: 9 },
+    });
+
+    const reloadedLayout = await harness.getData<{
+      backgroundImage: string | null;
+      seatLayout: Array<{
+        id: string;
+        position: { x: string; y: string };
+        layer: number;
+        nameplate: { position: { x: string; y: string }; layer: number };
+      }>;
+    }>('scene-layout', { companyId });
+
+    expect(reloadedLayout.backgroundImage).toBe('paperclip://scene-editor.png');
+    expect(reloadedLayout.seatLayout[0]).toMatchObject({
+      id: 'desk-1',
+      position: { x: '28%', y: '36%' },
+      layer: 5,
+      nameplate: { position: { x: '28%', y: '43%' }, layer: 9 },
+    });
+  });
+
+  it('rejects non-paperclip background image URLs when saving and loading scene layout', async () => {
+    const savedLayout = await harness.performAction<{
+      backgroundImage: string | null;
+    }>('save-scene-layout', {
+      companyId,
+      layout: {
+        backgroundImage: 'https://attacker.example/track.png',
+      },
+    });
+
+    expect(savedLayout.backgroundImage).toBeNull();
+
+    const injectedLayout = await harness.performAction<{
+      backgroundImage: string | null;
+    }>('save-scene-layout', {
+      companyId,
+      layout: {
+        backgroundImage: 'paperclip://office.png), url(https://attacker.example/track.png',
+      },
+    });
+
+    expect(injectedLayout.backgroundImage).toBeNull();
+
+    await harness.ctx.state.set(
+      {
+        scopeKind: 'company',
+        scopeId: companyId,
+        namespace: 'scene-layout',
+        stateKey: 'layout',
+      },
+      {
+        backgroundImage: 'https://attacker.example/reload.png',
+      },
+    );
+
+    const reloadedLayout = await harness.getData<{
+      backgroundImage: string | null;
+    }>('scene-layout', { companyId });
+
+    expect(reloadedLayout.backgroundImage).toBeNull();
+  });
+
   it('refreshes the roster through action bridge', async () => {
     const roster = await harness.performAction<{
       companyId: string;

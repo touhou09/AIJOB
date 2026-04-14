@@ -141,4 +141,55 @@ describe('useOfficeStore', () => {
     });
     expect(state.sceneLayout.seatLayout).toHaveLength(DEFAULT_SCENE_LAYOUT.seatLayout.length);
   });
+
+  it('allows clearing a persisted background image back to the fallback preset', () => {
+    const store = useOfficeStore.getState();
+    store.replaceSceneLayout({ backgroundImage: 'paperclip://scene.png' });
+    store.replaceSceneLayout({ backgroundImage: null });
+
+    expect(useOfficeStore.getState().sceneLayout.backgroundImage).toBeNull();
+  });
+
+  it('preserves existing custom seat fields when applying a partial seat patch', () => {
+    const store = useOfficeStore.getState();
+    store.replaceSceneLayout({
+      seatLayout: [
+        {
+          id: 'desk-1',
+          position: { x: '20%', y: '30%' },
+          layer: 4,
+          nameplate: { position: { x: '20%', y: '38%' }, layer: 6 },
+        },
+        {
+          id: 'desk-2',
+          position: { x: '50%', y: '35%' },
+          layer: 5,
+          nameplate: { position: { x: '50%', y: '43%' }, layer: 7 },
+        },
+      ],
+    });
+
+    store.replaceSceneLayout({
+      seatLayout: [
+        {
+          id: 'desk-1',
+          nameplate: { layer: 9 },
+        },
+      ],
+    });
+
+    const state = useOfficeStore.getState();
+    expect(state.sceneLayout.seatLayout[0]).toMatchObject({
+      id: 'desk-1',
+      position: { x: '20%', y: '30%' },
+      layer: 4,
+      nameplate: { position: { x: '20%', y: '38%' }, layer: 9 },
+    });
+    expect(state.sceneLayout.seatLayout[1]).toMatchObject({
+      id: 'desk-2',
+      position: { x: '50%', y: '35%' },
+      layer: 5,
+      nameplate: { position: { x: '50%', y: '43%' }, layer: 7 },
+    });
+  });
 });

@@ -60,6 +60,42 @@ function buildTimelineEvents(previousAgents: AgentSnapshot[], nextAgents: AgentS
   });
 }
 
+function mergeSceneSeatLayout(currentSeats: SceneLayout['seatLayout'], nextSeats?: SceneLayoutInput['seatLayout']) {
+  if (!nextSeats) {
+    return currentSeats;
+  }
+
+  const nextSeatsById = new Map(nextSeats.map((seat) => [seat.id, seat]));
+  return currentSeats.map((seat) => {
+    const patch = nextSeatsById.get(seat.id);
+    if (!patch) {
+      return seat;
+    }
+
+    return {
+      ...seat,
+      ...patch,
+      position: {
+        ...seat.position,
+        ...patch.position,
+      },
+      size: {
+        ...seat.size,
+        ...patch.size,
+      },
+      visibleOn: patch.visibleOn ?? seat.visibleOn,
+      nameplate: {
+        ...seat.nameplate,
+        ...patch.nameplate,
+        position: {
+          ...seat.nameplate.position,
+          ...patch.nameplate?.position,
+        },
+      },
+    };
+  });
+}
+
 const initialState = {
   companyId: null,
   agents: [] as AgentSnapshot[],
@@ -98,8 +134,8 @@ export const useOfficeStore = create<OfficeStoreState>((set) => ({
       sceneLayout: normalizeSceneLayout({
         ...state.sceneLayout,
         ...layout,
-        backgroundImage: layout.backgroundImage ?? state.sceneLayout.backgroundImage,
-        seatLayout: layout.seatLayout ?? state.sceneLayout.seatLayout,
+        backgroundImage: layout.backgroundImage !== undefined ? layout.backgroundImage : state.sceneLayout.backgroundImage,
+        seatLayout: mergeSceneSeatLayout(state.sceneLayout.seatLayout, layout.seatLayout),
       }),
     }));
   },
