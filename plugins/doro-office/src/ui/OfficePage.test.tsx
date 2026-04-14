@@ -22,6 +22,7 @@ function buildAgent(index: number): AgentSnapshot {
     role: 'engineer',
     status: index === 2 ? 'error' : index % 2 === 0 ? 'active' : 'idle',
     lastHeartbeatAt: `2026-04-11T00:00:0${index}.000Z`,
+    recentWorkSummary: `Agent ${index} 최근 작업 요약`,
   };
 }
 
@@ -139,7 +140,7 @@ describe('OfficePageView', () => {
     expect(container.textContent).toContain('overflow roster');
     expect(container.textContent).toContain('Agent 8');
     expect(container.textContent).toContain('최근 이벤트 timeline');
-    expect(container.querySelectorAll('article[aria-label$="좌석 카드"]').length).toBe(7);
+    expect(container.querySelectorAll('button[aria-label$="상세 패널 열기"]').length).toBe(8);
   });
 
   it('switches to settings view and toggles display options', async () => {
@@ -279,6 +280,43 @@ describe('OfficePageView', () => {
         }),
       }),
     );
+  });
+
+  it('opens a clickable detail panel for a pinned seat agent', async () => {
+    await renderOfficePage();
+
+    expect(container.textContent).toContain('agent detail panel');
+    expect(container.textContent).toContain('에이전트를 선택하면');
+
+    const pinnedAgentButton = container.querySelector('button[aria-label="Agent 1 상세 패널 열기"]');
+    expect(pinnedAgentButton).toBeTruthy();
+
+    await act(async () => {
+      pinnedAgentButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('Agent 1');
+    expect(container.textContent).toContain('현재 상태');
+    expect(container.textContent).toContain('마지막 업데이트');
+    expect(container.textContent).toContain('최근 작업 요약');
+    expect(container.textContent).toContain('Agent 1 최근 작업 요약');
+    expect(container.textContent).toContain('2026');
+  });
+
+  it('switches the detail panel when selecting an overflow roster agent', async () => {
+    await renderOfficePage();
+
+    const overflowAgentButton = container.querySelector('button[aria-label="Agent 8 상세 패널 열기"]');
+    expect(overflowAgentButton).toBeTruthy();
+
+    await act(async () => {
+      overflowAgentButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('Agent 8');
+    expect(container.textContent).toContain('Agent 8 최근 작업 요약');
   });
 
   it('drags a seat on the office canvas and persists the updated scene layout', async () => {

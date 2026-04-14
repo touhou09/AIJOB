@@ -25,6 +25,7 @@ function createAgent(name: string, status: 'idle' | 'active' = 'idle') {
     pausedAt: null,
     permissions: { canCreateAgents: false },
     lastHeartbeatAt: timestamp,
+    recentWorkSummary: null,
     metadata: null,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -73,6 +74,8 @@ describe('createAgentRosterPoller', () => {
 
     expect(payload.source).toBe('initial');
     expect(payload.agents.map((agent) => agent.name)).toEqual(['Alpha', 'Bravo']);
+    expect(payload.agents[0]?.recentWorkSummary).toBe('engineer 에이전트가 최근 작업 이후 대기 중입니다.');
+    expect(payload.agents[1]?.recentWorkSummary).toBe('engineer 에이전트가 최근 작업을 진행 중입니다.');
     expect(updates).toHaveLength(1);
   });
 
@@ -100,3 +103,4 @@ describe('createAgentRosterPoller', () => {
     expect(updates).toHaveLength(1);
   });
 });
+

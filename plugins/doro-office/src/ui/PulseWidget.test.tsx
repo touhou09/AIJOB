@@ -16,10 +16,10 @@ vi.mock('@paperclipai/plugin-sdk/ui', () => ({
 const roster: AgentRosterState = {
   companyId: 'company-1',
   agents: [
-    { id: '1', name: 'Alpha', role: 'engineer', status: 'active', lastHeartbeatAt: '2026-04-11T00:00:00.000Z' },
-    { id: '2', name: 'Bravo', role: 'engineer', status: 'running', lastHeartbeatAt: '2026-04-11T00:00:00.000Z' },
-    { id: '3', name: 'Charlie', role: 'engineer', status: 'error', lastHeartbeatAt: '2026-04-11T00:00:00.000Z' },
-    { id: '4', name: 'Delta', role: 'engineer', status: 'idle', lastHeartbeatAt: '2026-04-11T00:00:00.000Z' },
+    { id: '1', name: 'Alpha', role: 'engineer', status: 'active', lastHeartbeatAt: '2026-04-11T00:00:00.000Z', recentWorkSummary: null },
+    { id: '2', name: 'Bravo', role: 'engineer', status: 'running', lastHeartbeatAt: '2026-04-11T00:00:00.000Z', recentWorkSummary: null },
+    { id: '3', name: 'Charlie', role: 'engineer', status: 'error', lastHeartbeatAt: '2026-04-11T00:00:00.000Z', recentWorkSummary: null },
+    { id: '4', name: 'Delta', role: 'engineer', status: 'idle', lastHeartbeatAt: '2026-04-11T00:00:00.000Z', recentWorkSummary: null },
   ],
   fetchedAt: '2026-04-11T00:00:00.000Z',
   source: 'poll',
@@ -28,10 +28,10 @@ const roster: AgentRosterState = {
 const refreshedRoster: AgentRosterState = {
   companyId: 'company-1',
   agents: [
-    { id: '1', name: 'Alpha', role: 'engineer', status: 'error', lastHeartbeatAt: '2026-04-11T00:00:01.000Z' },
-    { id: '2', name: 'Bravo', role: 'engineer', status: 'running', lastHeartbeatAt: '2026-04-11T00:00:01.000Z' },
-    { id: '3', name: 'Charlie', role: 'engineer', status: 'error', lastHeartbeatAt: '2026-04-11T00:00:01.000Z' },
-    { id: '4', name: 'Delta', role: 'engineer', status: 'idle', lastHeartbeatAt: '2026-04-11T00:00:01.000Z' },
+    { id: '1', name: 'Alpha', role: 'engineer', status: 'error', lastHeartbeatAt: '2026-04-11T00:00:01.000Z', recentWorkSummary: null },
+    { id: '2', name: 'Bravo', role: 'engineer', status: 'running', lastHeartbeatAt: '2026-04-11T00:00:01.000Z', recentWorkSummary: null },
+    { id: '3', name: 'Charlie', role: 'engineer', status: 'error', lastHeartbeatAt: '2026-04-11T00:00:01.000Z', recentWorkSummary: null },
+    { id: '4', name: 'Delta', role: 'engineer', status: 'idle', lastHeartbeatAt: '2026-04-11T00:00:01.000Z', recentWorkSummary: null },
   ],
   fetchedAt: '2026-04-11T00:00:01.000Z',
   source: 'poll',
@@ -103,3 +103,4 @@ describe('PulseWidget', () => {
     expect(container.textContent).toContain('2');
   });
 });
+
