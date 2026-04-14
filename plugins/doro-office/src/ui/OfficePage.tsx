@@ -1,23 +1,26 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PluginHostContext } from '@paperclipai/plugin-sdk/ui';
-import type { AgentSnapshot } from '../shared/types';
+import { usePluginAction, usePluginData } from '@paperclipai/plugin-sdk/ui';
+import type { AgentSnapshot, SceneLayout } from '../shared/types';
+import { type SceneLayoutInput, type SceneSeatLayout, type SceneSeatLayoutInput } from '../shared/scene-layout';
 import { AgentCard } from './AgentCard';
 import { OfficeAgentPin } from './OfficeAgentPin';
-import { OFFICE_SEATS } from './office-layout';
 import { useOfficeStore } from './store';
 import { AUTO_REFRESH_INTERVAL_MS, useAutoRefreshingRoster } from './useAutoRefreshingRoster';
 
 const GRID_CLASSES = 'do:grid do:grid-cols-2 do:gap-3 md:do:grid-cols-3 lg:do:grid-cols-4';
+const SCENE_LAYOUT_CANVAS_WIDTH = 1000;
+const SCENE_LAYOUT_CANVAS_HEIGHT = 700;
 
 type OfficePageViewProps = {
   context: PluginHostContext;
   mode: 'page' | 'sidebar';
 };
 
-function splitAgentsForOffice(agents: AgentSnapshot[]) {
+function splitAgentsForOffice(agents: AgentSnapshot[], seatCount: number) {
   return {
-    pinnedAgents: agents.slice(0, OFFICE_SEATS.length),
-    overflowAgents: agents.slice(OFFICE_SEATS.length),
+    pinnedAgents: agents.slice(0, seatCount),
+    overflowAgents: agents.slice(seatCount),
   };
 }
 
@@ -25,9 +28,54 @@ function toTimelineLabel(status: AgentSnapshot['status']) {
   return status.replace(/_/g, ' ');
 }
 
+function parsePercent(value: string) {
+  return Number.parseFloat(value.replace('%', '')) || 0;
+}
+
+function clampPercent(value: number) {
+  return Math.min(95, Math.max(5, value));
+}
+
+function formatPercent(value: number) {
+  const rounded = Math.round(value * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}%`;
+}
+
+function getUiErrorMessage(error: unknown) {
+  if (!error) {
+    return 'unknown error';
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return 'unknown error';
+}
+
+function buildSeatLayoutPatch(seat: SceneSeatLayout, patch: Partial<SceneSeatLayoutInput>) {
+  return {
+    seatLayout: [
+      {
+        id: seat.id,
+        ...patch,
+      },
+    ],
+  } satisfies SceneLayoutInput;
+}
+
 export function OfficePageView({ context, mode }: OfficePageViewProps) {
   const companyId = context.companyId;
   const { roster, loading, error, refresh } = useAutoRefreshingRoster(companyId);
+  const {
+    data: persistedSceneLayout,
+    error: sceneLayoutError,
+    loading: sceneLayoutLoading,
+    refresh: refreshSceneLayout,
+  } = usePluginData<SceneLayout>('scene-layout', { companyId: companyId ?? '' });
+  const saveSceneLayout = usePluginAction('save-scene-layout');
+  const [sceneLayoutSaveError, setSceneLayoutSaveError] = useState<string | null>(null);
 
   const {
     agents,
@@ -38,7 +86,9 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
     showBubbles,
     highlightIssues,
     recentEvents,
+    sceneLayout,
     replaceRoster,
+    replaceSceneLayout,
     setError,
     setLoading,
     setActiveView,
@@ -51,9 +101,12 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
     reset();
   }, [companyId, reset]);
 
+  const effectiveSceneLayoutError = mode === 'page' ? sceneLayoutError : null;
+  const effectiveLoading = loading || (mode === 'page' ? sceneLayoutLoading : false);
+
   useEffect(() => {
-    setLoading(loading);
-  }, [loading, setLoading]);
+    setLoading(effectiveLoading);
+  }, [effectiveLoading, setLoading]);
 
   useEffect(() => {
     if (roster) {
@@ -62,16 +115,48 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
   }, [replaceRoster, roster]);
 
   useEffect(() => {
+    if (persistedSceneLayout) {
+      replaceSceneLayout(persistedSceneLayout);
+    }
+  }, [persistedSceneLayout, replaceSceneLayout]);
+
+  useEffect(() => {
+    if (effectiveSceneLayoutError) {
+      setError(effectiveSceneLayoutError.message);
+      return;
+    }
     setError(error);
-  }, [error, setError]);
+  }, [effectiveSceneLayoutError, error, setError]);
+
+  const draftSceneLayoutChange = (layout: SceneLayoutInput) => {
+    replaceSceneLayout(layout);
+  };
+
+  const persistCurrentSceneLayout = async () => {
+    if (!companyId) {
+      return;
+    }
+    const currentLayout = useOfficeStore.getState().sceneLayout;
+    try {
+      await saveSceneLayout({ companyId, layout: currentLayout });
+      setSceneLayoutSaveError(null);
+    } catch (saveError) {
+      setSceneLayoutSaveError(getUiErrorMessage(saveError));
+    }
+  };
+
+  const pageSeats = useMemo(
+    () => sceneLayout.seatLayout.filter((seat) => seat.visibleOn.includes('page')),
+    [sceneLayout],
+  );
+  const { pinnedAgents, overflowAgents } = useMemo(() => splitAgentsForOffice(agents, pageSeats.length), [agents, pageSeats.length]);
 
   const handleRefresh = async () => {
-    await refresh();
+    await Promise.all([refresh(), mode === 'page' ? refreshSceneLayout() : Promise.resolve()]);
   };
 
   const effectiveCompanyId = storeCompanyId ?? companyId;
-  const isEmpty = !loading && !error && agents.length === 0;
-  const { pinnedAgents, overflowAgents } = useMemo(() => splitAgentsForOffice(agents), [agents]);
+  const isEmpty = !effectiveLoading && !error && !effectiveSceneLayoutError && agents.length === 0;
 
   if (mode === 'sidebar') {
     const visibleAgents = agents.slice(0, 4);
@@ -95,11 +180,11 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
           </button>
         </header>
 
-        {loading ? <LoadingState /> : null}
-        {error ? <ErrorState message={error} onRetry={handleRefresh} /> : null}
+        {effectiveLoading ? <LoadingState /> : null}
+        {error || effectiveSceneLayoutError ? <ErrorState message={getUiErrorMessage(effectiveSceneLayoutError ?? error)} onRetry={handleRefresh} /> : null}
         {isEmpty ? <EmptyState /> : null}
 
-        {!loading && !error && visibleAgents.length > 0 ? (
+        {!effectiveLoading && !error && !effectiveSceneLayoutError && visibleAgents.length > 0 ? (
           <div className="do:grid do:gap-3">
             {visibleAgents.map((agent) => (
               <AgentCard key={agent.id} agent={agent} />
@@ -116,8 +201,8 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
 
   const pageDescription =
     activeView === 'office'
-      ? `오피스 배경 위 지정 좌표 7석에 에이전트를 배치하고 ${AUTO_REFRESH_INTERVAL_MS / 1_000}초 단위 diff polling으로 갱신합니다.`
-      : '말풍선과 오류 강조, timeline 밀도를 조정하는 표시 옵션 설정 패널입니다.';
+      ? `오피스 배경 위 scene layout 좌표를 기반으로 에이전트를 배치하고 ${AUTO_REFRESH_INTERVAL_MS / 1_000}초 단위 diff polling으로 갱신합니다.`
+      : '표시 옵션과 scene editor에서 backgroundImage, nameplate, layer를 조정하고 저장할 수 있습니다.';
 
   return (
     <section className="do:flex do:h-full do:flex-col do:gap-4 do:rounded-3xl do:border do:border-orange-200 do:bg-orange-50/40 do:p-4 do:text-slate-900 md:do:p-6">
@@ -159,31 +244,39 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
             <TabButton active={activeView === 'office'} label="오피스 레이아웃" onClick={() => setActiveView('office')} />
             <TabButton active={activeView === 'settings'} label="표시 옵션" onClick={() => setActiveView('settings')} />
           </div>
-          <p className="do:text-xs do:text-slate-500">1초 polling + 최근 이벤트 timeline + dashboard widget surface를 함께 제공합니다.</p>
+          <p className="do:text-xs do:text-slate-500">1초 polling + scene editor + 최근 이벤트 timeline + dashboard widget surface를 함께 제공합니다.</p>
         </div>
       </header>
 
-      {loading ? <LoadingState /> : null}
-      {error ? <ErrorState message={error} onRetry={handleRefresh} /> : null}
+      {sceneLayoutSaveError ? <SceneLayoutSaveErrorBanner message={sceneLayoutSaveError} /> : null}
+
+      {effectiveLoading ? <LoadingState /> : null}
+      {error || effectiveSceneLayoutError ? <ErrorState message={getUiErrorMessage(effectiveSceneLayoutError ?? error)} onRetry={handleRefresh} /> : null}
       {isEmpty ? <EmptyState /> : null}
 
-      {!loading && !error && activeView === 'office' && pinnedAgents.length > 0 ? (
+      {!effectiveLoading && !error && !effectiveSceneLayoutError && activeView === 'office' ? (
         <OfficeLayoutSection
-          pinnedAgents={pinnedAgents}
-          overflowAgents={overflowAgents}
-          recentEvents={recentEvents}
-          showBubbles={showBubbles}
           highlightIssues={highlightIssues}
+          onDraftSceneLayoutChange={draftSceneLayoutChange}
+          onPersistSceneLayout={persistCurrentSceneLayout}
+          overflowAgents={overflowAgents}
+          pinnedAgents={pinnedAgents}
+          recentEvents={recentEvents}
+          sceneLayout={sceneLayout}
+          showBubbles={showBubbles}
         />
       ) : null}
 
-      {!loading && !error && activeView === 'settings' ? (
+      {!effectiveLoading && !error && !effectiveSceneLayoutError && activeView === 'settings' ? (
         <SettingsSection
-          showBubbles={showBubbles}
           highlightIssues={highlightIssues}
-          overflowCount={overflowAgents.length}
-          onToggleShowBubbles={toggleShowBubbles}
+          onDraftSceneLayoutChange={draftSceneLayoutChange}
+          onPersistSceneLayout={persistCurrentSceneLayout}
           onToggleHighlightIssues={toggleHighlightIssues}
+          onToggleShowBubbles={toggleShowBubbles}
+          overflowCount={overflowAgents.length}
+          sceneLayout={sceneLayout}
+          showBubbles={showBubbles}
         />
       ) : null}
     </section>
@@ -229,40 +322,131 @@ type OfficeLayoutSectionProps = {
   recentEvents: ReturnType<typeof useOfficeStore.getState>['recentEvents'];
   showBubbles: boolean;
   highlightIssues: boolean;
+  sceneLayout: SceneLayout;
+  onDraftSceneLayoutChange: (layout: SceneLayoutInput) => void;
+  onPersistSceneLayout: () => Promise<void>;
 };
 
-function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showBubbles, highlightIssues }: OfficeLayoutSectionProps) {
+function OfficeLayoutSection({
+  pinnedAgents,
+  overflowAgents,
+  recentEvents,
+  showBubbles,
+  highlightIssues,
+  sceneLayout,
+  onDraftSceneLayoutChange,
+  onPersistSceneLayout,
+}: OfficeLayoutSectionProps) {
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const pageSeats = useMemo(() => sceneLayout.seatLayout.filter((seat) => seat.visibleOn.includes('page')), [sceneLayout]);
+
+  const startDrag = (seat: SceneSeatLayout, target: 'seat' | 'nameplate', startX: number, startY: number) => {
+    const origin = target === 'seat' ? seat.position : seat.nameplate.position;
+    const originX = parsePercent(origin.x);
+    const originY = parsePercent(origin.y);
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const canvasWidth = rect?.width && rect.width > 0 ? rect.width : SCENE_LAYOUT_CANVAS_WIDTH;
+    const canvasHeight = rect?.height && rect.height > 0 ? rect.height : SCENE_LAYOUT_CANVAS_HEIGHT;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const deltaX = ((event.clientX - startX) / canvasWidth) * 100;
+      const deltaY = ((event.clientY - startY) / canvasHeight) * 100;
+      const nextPosition = {
+        x: formatPercent(clampPercent(originX + deltaX)),
+        y: formatPercent(clampPercent(originY + deltaY)),
+      };
+
+      onDraftSceneLayoutChange(
+        buildSeatLayoutPatch(
+          seat,
+          target === 'seat'
+            ? { position: nextPosition }
+            : {
+                nameplate: {
+                  position: nextPosition,
+                },
+              },
+        ),
+      );
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      void onPersistSceneLayout();
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
     <div className="do:grid do:gap-4 xl:do:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)]">
       <section className="do:overflow-hidden do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-4 do:shadow-sm">
         <div className="do:mb-4 do:flex do:items-center do:justify-between do:gap-3">
           <div>
             <h2 className="do:text-base do:font-semibold do:text-slate-950">오피스 레이아웃</h2>
-            <p className="do:text-sm do:text-slate-600">7개 좌석 고정 좌표 위에 에이전트를 배치하고 overflow roster는 별도 패널로 분리합니다.</p>
+            <p className="do:text-sm do:text-slate-600">scene editor의 drag layout이 좌석 카드, backgroundImage, nameplate layer 저장 스키마와 바로 연결됩니다.</p>
           </div>
-          <span className="do:rounded-full do:bg-orange-100 do:px-3 do:py-1 do:text-xs do:font-semibold do:text-orange-700">{pinnedAgents.length}/{OFFICE_SEATS.length} seats</span>
+          <span className="do:rounded-full do:bg-orange-100 do:px-3 do:py-1 do:text-xs do:font-semibold do:text-orange-700">{pinnedAgents.length}/{pageSeats.length} seats</span>
         </div>
 
-        <div className="do:relative do:min-h-[34rem] do:rounded-[1.75rem] do:border do:border-orange-100 do:bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_55%,#ffedd5_100%)] do:p-4">
-          <OfficeBackground />
+        <div ref={canvasRef} className="do:relative do:min-h-[34rem] do:rounded-[1.75rem] do:border do:border-orange-100 do:bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_55%,#ffedd5_100%)] do:p-4">
+          <OfficeBackground backgroundImage={sceneLayout.backgroundImage} />
 
-          {OFFICE_SEATS.map((seat, index) => {
+          {pageSeats.map((seat, index) => {
             const agent = pinnedAgents[index];
             return (
-              <div key={seat.id} className="do:absolute do:-translate-x-1/2 do:-translate-y-1/2" style={{ left: seat.x, top: seat.y }}>
-                {agent ? (
-                  <OfficeAgentPin
-                    agent={agent}
-                    emphasizeIssue={highlightIssues}
-                    seatLabel={seat.label}
-                    showSpeechBubble={showBubbles}
-                  />
-                ) : (
-                  <div className="do:w-40 do:rounded-[1.5rem] do:border do:border-dashed do:border-orange-200 do:bg-white/80 do:px-4 do:py-3 do:text-sm do:text-slate-400">
-                    <p className="do:text-[11px] do:font-semibold do:uppercase do:tracking-[0.18em] do:text-orange-400">{seat.label}</p>
-                    <p className="do:mt-2">비어 있는 좌석</p>
+              <div key={seat.id}>
+                <div
+                  className="do:absolute do:-translate-x-1/2 do:-translate-y-1/2"
+                  style={{ left: seat.position.x, top: seat.position.y, zIndex: seat.layer }}
+                >
+                  <div className="do:relative" style={{ width: seat.size.width }}>
+                    {agent ? (
+                      <OfficeAgentPin
+                        agent={agent}
+                        emphasizeIssue={highlightIssues}
+                        seatLabel={seat.label}
+                        showSpeechBubble={showBubbles}
+                      />
+                    ) : (
+                      <div className="do:w-40 do:rounded-[1.5rem] do:border do:border-dashed do:border-orange-200 do:bg-white/80 do:px-4 do:py-3 do:text-sm do:text-slate-400">
+                        <p className="do:text-[11px] do:font-semibold do:uppercase do:tracking-[0.18em] do:text-orange-400">{seat.label}</p>
+                        <p className="do:mt-2">비어 있는 좌석</p>
+                      </div>
+                    )}
+                    <button
+                      aria-label={`${seat.label} 좌석 드래그 핸들`}
+                      className="do:absolute do:right-2 do:top-2 do:rounded-full do:bg-white/90 do:px-2 do:py-1 do:text-[11px] do:font-semibold do:text-slate-600 do:shadow"
+                      onMouseDown={(event) => {
+                        startDrag(seat, 'seat', event.clientX, event.clientY);
+                      }}
+                      type="button"
+                    >
+                      drag
+                    </button>
                   </div>
-                )}
+                </div>
+
+                <div
+                  className="do:absolute do:-translate-x-1/2 do:-translate-y-1/2"
+                  style={{ left: seat.nameplate.position.x, top: seat.nameplate.position.y, zIndex: seat.nameplate.layer }}
+                >
+                  <div className="do:flex do:items-center do:gap-2 do:rounded-full do:bg-slate-900/85 do:px-3 do:py-1.5 do:text-xs do:font-semibold do:text-white do:shadow-lg">
+                    <span>{seat.label}</span>
+                    <button
+                      aria-label={`${seat.label} nameplate 드래그 핸들`}
+                      className="do:rounded-full do:bg-white/15 do:px-2 do:py-0.5 do:text-[10px] do:uppercase do:tracking-wide"
+                      onMouseDown={(event) => {
+                        startDrag(seat, 'nameplate', event.clientX, event.clientY);
+                      }}
+                      type="button"
+                    >
+                      nameplate
+                    </button>
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -311,49 +495,151 @@ type SettingsSectionProps = {
   showBubbles: boolean;
   highlightIssues: boolean;
   overflowCount: number;
+  sceneLayout: SceneLayout;
   onToggleShowBubbles: () => void;
   onToggleHighlightIssues: () => void;
+  onDraftSceneLayoutChange: (layout: SceneLayoutInput) => void;
+  onPersistSceneLayout: () => Promise<void>;
 };
 
 function SettingsSection({
   showBubbles,
   highlightIssues,
   overflowCount,
+  sceneLayout,
   onToggleShowBubbles,
   onToggleHighlightIssues,
+  onDraftSceneLayoutChange,
+  onPersistSceneLayout,
 }: SettingsSectionProps) {
   return (
-    <section className="do:grid do:gap-4 xl:do:grid-cols-[minmax(0,1.3fr)_minmax(18rem,1fr)]">
-      <div className="do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-5 do:shadow-sm">
-        <h2 className="do:text-base do:font-semibold do:text-slate-950">표시 옵션</h2>
-        <p className="do:mt-2 do:text-sm do:leading-6 do:text-slate-600">
-          운영자가 오피스 화면의 정보 밀도를 조절할 수 있도록 말풍선과 오류 강조 표시를 개별적으로 켜고 끌 수 있습니다.
-        </p>
+    <section className="do:grid do:gap-4 xl:do:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)]">
+      <div className="do:grid do:gap-4">
+        <div className="do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-5 do:shadow-sm">
+          <h2 className="do:text-base do:font-semibold do:text-slate-950">표시 옵션</h2>
+          <p className="do:mt-2 do:text-sm do:leading-6 do:text-slate-600">
+            운영자가 오피스 화면의 정보 밀도를 조절할 수 있도록 말풍선과 오류 강조 표시를 개별적으로 켜고 끌 수 있습니다.
+          </p>
 
-        <div className="do:mt-5 do:grid do:gap-4">
-          <SettingToggle
-            description="각 좌석 카드에 상태 요약 말풍선을 표시합니다."
-            label="말풍선 표시"
-            onToggle={onToggleShowBubbles}
-            pressed={showBubbles}
-          />
-          <SettingToggle
-            description="error 상태 에이전트를 강조 링으로 표시합니다."
-            label="오류 상태 강조"
-            onToggle={onToggleHighlightIssues}
-            pressed={highlightIssues}
-          />
+          <div className="do:mt-5 do:grid do:gap-4">
+            <SettingToggle
+              description="각 좌석 카드에 상태 요약 말풍선을 표시합니다."
+              label="말풍선 표시"
+              onToggle={onToggleShowBubbles}
+              pressed={showBubbles}
+            />
+            <SettingToggle
+              description="error 상태 에이전트를 강조 링으로 표시합니다."
+              label="오류 상태 강조"
+              onToggle={onToggleHighlightIssues}
+              pressed={highlightIssues}
+            />
+          </div>
         </div>
+
+        <SceneEditorPanel sceneLayout={sceneLayout} onDraftSceneLayoutChange={onDraftSceneLayoutChange} onPersistSceneLayout={onPersistSceneLayout} />
       </div>
 
       <div className="do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-5 do:shadow-sm">
         <h2 className="do:text-base do:font-semibold do:text-slate-950">레이아웃 구조</h2>
         <div className="do:mt-4 do:grid do:gap-3">
-          <StatusRow label="고정 좌석" value={`${OFFICE_SEATS.length}개`} />
+          <StatusRow label="고정 좌석" value={`${sceneLayout.seatLayout.length}개`} />
           <StatusRow label="overflow roster" value={overflowCount > 0 ? `${overflowCount}명 별도 표시` : '없음'} />
           <StatusRow label="말풍선" value={showBubbles ? '켜짐' : '꺼짐'} />
           <StatusRow label="오류 강조" value={highlightIssues ? '켜짐' : '꺼짐'} />
           <StatusRow label="자동 갱신" value="1초 polling" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+type SceneEditorPanelProps = {
+  sceneLayout: SceneLayout;
+  onDraftSceneLayoutChange: (layout: SceneLayoutInput) => void;
+  onPersistSceneLayout: () => Promise<void>;
+};
+
+function SceneEditorPanel({ sceneLayout, onDraftSceneLayoutChange, onPersistSceneLayout }: SceneEditorPanelProps) {
+  return (
+    <section className="do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-5 do:shadow-sm">
+      <div className="do:flex do:flex-wrap do:items-center do:justify-between do:gap-3">
+        <div>
+          <h2 className="do:text-base do:font-semibold do:text-slate-950">scene editor</h2>
+          <p className="do:mt-2 do:text-sm do:leading-6 do:text-slate-600">backgroundImage, seat drag layout, nameplate 위치와 layer를 persisted scene layout 스키마에 맞춰 편집합니다.</p>
+        </div>
+        <button
+          aria-label="scene layout 저장"
+          className="do:inline-flex do:items-center do:justify-center do:rounded-full do:bg-orange-500 do:px-4 do:py-2 do:text-sm do:font-semibold do:text-white hover:do:bg-orange-600"
+          onClick={() => {
+            void onPersistSceneLayout();
+          }}
+          type="button"
+        >
+          저장
+        </button>
+      </div>
+
+      <div className="do:mt-5 do:grid do:gap-4">
+        <label className="do:grid do:gap-2">
+          <span className="do:text-sm do:font-semibold do:text-slate-900">배경 이미지</span>
+          <input
+            className="do:rounded-2xl do:border do:border-orange-100 do:px-4 do:py-3 do:text-sm do:text-slate-900"
+            name="backgroundImage"
+            onInput={(event) => {
+              onDraftSceneLayoutChange({ backgroundImage: (event.target as HTMLInputElement).value || null });
+            }}
+            placeholder="paperclip://office-background.png"
+            type="text"
+            value={sceneLayout.backgroundImage ?? ''}
+          />
+        </label>
+
+        <div className="do:grid do:gap-3">
+          {sceneLayout.seatLayout.map((seat) => (
+            <div key={seat.id} className="do:rounded-[1.5rem] do:border do:border-orange-100 do:bg-orange-50/60 do:p-4">
+              <div className="do:flex do:flex-wrap do:items-center do:justify-between do:gap-3">
+                <div>
+                  <h3 className="do:text-sm do:font-semibold do:text-slate-950">{seat.label}</h3>
+                  <p className="do:text-xs do:text-slate-500">drag layout handle은 office 탭에서 바로 조정합니다.</p>
+                </div>
+                <div className="do:grid do:gap-2 sm:do:grid-cols-2">
+                  <label className="do:grid do:gap-1 do:text-xs do:text-slate-600">
+                    <span>layer</span>
+                    <input
+                      className="do:rounded-xl do:border do:border-orange-100 do:px-3 do:py-2 do:text-sm do:text-slate-900"
+                      min={1}
+                      name={`${seat.id}-layer`}
+                      onInput={(event) => {
+                        onDraftSceneLayoutChange(buildSeatLayoutPatch(seat, { layer: Number((event.target as HTMLInputElement).value) || seat.layer }));
+                      }}
+                      type="number"
+                      value={seat.layer}
+                    />
+                  </label>
+                  <label className="do:grid do:gap-1 do:text-xs do:text-slate-600">
+                    <span>nameplate layer</span>
+                    <input
+                      className="do:rounded-xl do:border do:border-orange-100 do:px-3 do:py-2 do:text-sm do:text-slate-900"
+                      min={1}
+                      name={`${seat.id}-nameplate-layer`}
+                      onInput={(event) => {
+                        onDraftSceneLayoutChange(
+                          buildSeatLayoutPatch(seat, {
+                            nameplate: {
+                              layer: Number((event.target as HTMLInputElement).value) || seat.nameplate.layer,
+                            },
+                          }),
+                        );
+                      }}
+                      type="number"
+                      value={seat.nameplate.layer}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -451,7 +737,33 @@ function EmptyState() {
   );
 }
 
-function OfficeBackground() {
+type SceneLayoutSaveErrorBannerProps = {
+  message: string;
+};
+
+function SceneLayoutSaveErrorBanner({ message }: SceneLayoutSaveErrorBannerProps) {
+  return (
+    <div className="do:rounded-3xl do:border do:border-amber-200 do:bg-amber-50 do:px-5 do:py-4 do:text-sm do:text-amber-900">
+      scene layout 저장 실패: {message}
+    </div>
+  );
+}
+
+type OfficeBackgroundProps = {
+  backgroundImage: string | null;
+};
+
+function OfficeBackground({ backgroundImage }: OfficeBackgroundProps) {
+  if (backgroundImage) {
+    return (
+      <div
+        aria-label="scene background image"
+        className="do:absolute do:inset-0 do:rounded-[1.5rem] do:bg-cover do:bg-center do:opacity-90"
+        style={{ backgroundImage: `url(${backgroundImage})` }}
+      />
+    );
+  }
+
   return (
     <svg aria-hidden="true" className="do:absolute do:inset-0 do:h-full do:w-full" viewBox="0 0 1200 760">
       <rect fill="#fff7ed" height="760" rx="36" width="1200" />

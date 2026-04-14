@@ -5,10 +5,10 @@ const manifest: PaperclipPluginManifestV1 = {
   apiVersion: 1,
   version: '0.1.4',
   displayName: 'Doro Office',
-  description: 'Realtime office-layout Hermes agent roster with timeline and pulse widget for Paperclip company dashboards.',
+  description: 'Realtime office-layout Hermes agent roster with timeline, pulse widget, and persisted scene editor for Paperclip company dashboards.',
   author: 'team-frontend',
   categories: ['ui'],
-  capabilities: ['agents.read', 'ui.page.register', 'ui.sidebar.register', 'ui.dashboardWidget.register'],
+  capabilities: ['agents.read', 'plugin.state.read', 'plugin.state.write', 'ui.page.register', 'ui.sidebar.register', 'ui.dashboardWidget.register'],
   entrypoints: {
     worker: 'dist/worker.js',
     ui: 'dist/ui',
