@@ -23,6 +23,7 @@ describe('useOfficeStore', () => {
     useOfficeStore.getState().setError('boom');
     useOfficeStore.getState().replaceRoster({
       companyId: 'company-1',
+      host: 'paperclip',
       agents: [{ id: 'agent-1', name: 'Alpha', role: 'engineer', status: 'idle', lastHeartbeatAt: '2026-04-11T00:00:00.000Z' }],
       fetchedAt: '2026-04-11T00:00:00.000Z',
       source: 'poll',
@@ -40,12 +41,14 @@ describe('useOfficeStore', () => {
     const store = useOfficeStore.getState();
     store.replaceRoster({
       companyId: 'company-1',
+      host: 'paperclip',
       agents: [{ id: 'agent-1', name: 'Alpha', role: 'engineer', status: 'idle', lastHeartbeatAt: '2026-04-11T00:00:00.000Z' }],
       fetchedAt: '2026-04-11T00:00:00.000Z',
       source: 'initial',
     });
     store.replaceRoster({
       companyId: 'company-1',
+      host: 'paperclip',
       agents: [{ id: 'agent-1', name: 'Alpha', role: 'engineer', status: 'running', lastHeartbeatAt: '2026-04-11T00:00:05.000Z' }],
       fetchedAt: '2026-04-11T00:00:05.000Z',
       source: 'poll',
@@ -76,6 +79,7 @@ describe('useOfficeStore', () => {
     const store = useOfficeStore.getState();
     store.replaceRoster({
       companyId: 'company-1',
+      host: 'paperclip',
       agents: [{ id: 'agent-1', name: 'Alpha', role: 'engineer', status: 'idle', lastHeartbeatAt: '2026-04-11T00:00:00.000Z' }],
       fetchedAt: '2026-04-11T00:00:00.000Z',
       source: 'refresh',

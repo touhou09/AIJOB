@@ -26,6 +26,8 @@ export type AgentSnapshot = {
   lastHeartbeatAt: string | null;
 };
 
+export type AgentRosterHost = 'paperclip' | 'openclaw';
+
 export type AgentRosterSource = 'initial' | 'poll' | 'refresh';
 
 export type SkinSource = 'builtin' | 'custom';
@@ -52,6 +54,7 @@ export type SkinCatalog = {
 
 export type AgentRosterPayload = {
   companyId: string;
+  host: AgentRosterHost;
   agents: AgentSnapshot[];
   fetchedAt: string;
   source: AgentRosterSource;

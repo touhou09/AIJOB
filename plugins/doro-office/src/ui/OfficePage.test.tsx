@@ -26,6 +26,7 @@ function buildAgent(index: number): AgentSnapshot {
 
 const roster: AgentRosterState = {
   companyId: 'company-1',
+  host: 'paperclip',
   agents: Array.from({ length: 8 }, (_, index) => buildAgent(index + 1)),
   fetchedAt: '2026-04-11T00:00:00.000Z',
   source: 'initial',
@@ -33,6 +34,7 @@ const roster: AgentRosterState = {
 
 const refreshedRoster: AgentRosterState = {
   companyId: 'company-1',
+  host: 'paperclip',
   agents: Array.from({ length: 8 }, (_, index) => ({ ...buildAgent(index + 1), status: index === 0 ? 'running' : buildAgent(index + 1).status })),
   fetchedAt: '2026-04-11T00:00:05.000Z',
   source: 'refresh',
@@ -138,6 +140,7 @@ describe('OfficePageView', () => {
       loading: true,
       data: {
         companyId: 'company-1',
+        host: 'paperclip',
         agents: [],
         fetchedAt: '2026-04-11T00:00:00.000Z',
         source: 'initial',
@@ -150,6 +153,7 @@ describe('OfficePageView', () => {
       error: new Error('network failed'),
       data: {
         companyId: 'company-1',
+        host: 'paperclip',
         agents: [],
         fetchedAt: '2026-04-11T00:00:00.000Z',
         source: 'initial',
