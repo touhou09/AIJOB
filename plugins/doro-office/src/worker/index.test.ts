@@ -32,6 +32,7 @@ function createAgent(id: string, name: string, status: AgentStatus) {
       canCreateAgents: false,
     },
     lastHeartbeatAt: timestamp,
+    recentWorkSummary: null,
     metadata: null,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -57,6 +58,7 @@ describe('doro-office worker bridge', () => {
       agents: Array<{
         name: string;
         lastHeartbeatAt: string | null;
+        recentWorkSummary: string | null;
       }>;
     }>('agent-roster', { companyId });
 
@@ -64,6 +66,7 @@ describe('doro-office worker bridge', () => {
     expect(roster.source).toBe('initial');
     expect(roster.agents.map((agent) => agent.name)).toEqual(['Alpha', 'Bravo']);
     expect(roster.agents[0]?.lastHeartbeatAt).toBe('2026-04-11T00:00:00.000Z');
+    expect(roster.agents[0]?.recentWorkSummary).toBe('engineer 에이전트가 최근 작업 이후 대기 중입니다.');
     expect(listSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -239,3 +242,4 @@ describe('doro-office worker bridge', () => {
     expect(roster.agents[1]?.name).toBe('Bravo');
   });
 });
+

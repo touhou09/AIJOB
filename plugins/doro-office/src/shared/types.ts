@@ -25,6 +25,7 @@ export type AgentSnapshot = {
   role: Agent['role'];
   status: Agent['status'];
   lastHeartbeatAt: string | null;
+  recentWorkSummary: string | null;
 };
 
 export type AgentRosterSource = 'initial' | 'poll' | 'refresh';

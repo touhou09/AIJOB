@@ -5,6 +5,8 @@ type OfficeAgentPinProps = {
   seatLabel: string;
   showSpeechBubble: boolean;
   emphasizeIssue: boolean;
+  isSelected?: boolean;
+  onSelect?: (agent: AgentSnapshot) => void;
 };
 
 function toVisualTone(status: AgentSnapshot['status']) {
@@ -53,16 +55,19 @@ function toInitials(name: string) {
     .join('');
 }
 
-export function OfficeAgentPin({ agent, seatLabel, showSpeechBubble, emphasizeIssue }: OfficeAgentPinProps) {
+export function OfficeAgentPin({ agent, seatLabel, showSpeechBubble, emphasizeIssue, isSelected = false, onSelect }: OfficeAgentPinProps) {
   const tone = toVisualTone(agent.status);
   const shouldHighlight = emphasizeIssue && agent.status === 'error';
 
   return (
-    <article
-      aria-label={`${agent.name} 좌석 카드`}
-      className={`do:w-44 do:rounded-[1.75rem] do:bg-white/92 do:p-3 do:shadow-lg do:ring-1 do:backdrop-blur do:transition do:duration-700 do:ease-out ${
-        shouldHighlight ? 'do:scale-[1.02] do:ring-rose-300' : tone.aura
+    <button
+      aria-label={`${agent.name} 상세 패널 열기`}
+      aria-pressed={isSelected}
+      className={`do:w-44 do:rounded-[1.75rem] do:bg-white/92 do:p-3 do:text-left do:shadow-lg do:ring-1 do:backdrop-blur do:transition do:duration-700 do:ease-out ${
+        isSelected ? 'do:ring-orange-300 do:shadow-xl' : shouldHighlight ? 'do:scale-[1.02] do:ring-rose-300' : tone.aura
       }`}
+      onClick={() => onSelect?.(agent)}
+      type="button"
     >
       <p className="do:text-[11px] do:font-semibold do:uppercase do:tracking-[0.18em] do:text-orange-500">{seatLabel}</p>
       <div className="do:mt-2 do:flex do:items-center do:gap-3">
@@ -85,6 +90,6 @@ export function OfficeAgentPin({ agent, seatLabel, showSpeechBubble, emphasizeIs
         <span className={`do:rounded-full do:px-2.5 do:py-1 do:text-[11px] do:font-semibold ${tone.chip}`}>{agent.status.replace(/_/g, ' ')}</span>
         <span className="do:text-[11px] do:text-slate-500">{toInitials(agent.name)}</span>
       </div>
-    </article>
+    </button>
   );
 }
