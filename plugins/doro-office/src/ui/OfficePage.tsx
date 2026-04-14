@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import type { PluginHostContext } from '@paperclipai/plugin-sdk/ui';
-import type { AgentSnapshot } from '../shared/types';
+import type { AgentSnapshot, SceneSeatLayout } from '../shared/types';
+import { sanitizeSceneBackgroundImage } from '../shared/scene-layout';
 import { AgentCard } from './AgentCard';
 import { OfficeAgentPin } from './OfficeAgentPin';
-import { OFFICE_SEATS } from './office-layout';
 import { useOfficeStore } from './store';
 import { AUTO_REFRESH_INTERVAL_MS, useAutoRefreshingRoster } from './useAutoRefreshingRoster';
 
@@ -14,10 +14,10 @@ type OfficePageViewProps = {
   mode: 'page' | 'sidebar';
 };
 
-function splitAgentsForOffice(agents: AgentSnapshot[]) {
+function splitAgentsForOffice(agents: AgentSnapshot[], seatCount: number) {
   return {
-    pinnedAgents: agents.slice(0, OFFICE_SEATS.length),
-    overflowAgents: agents.slice(OFFICE_SEATS.length),
+    pinnedAgents: agents.slice(0, seatCount),
+    overflowAgents: agents.slice(seatCount),
   };
 }
 
@@ -38,6 +38,7 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
     showBubbles,
     highlightIssues,
     recentEvents,
+    sceneLayout,
     replaceRoster,
     setError,
     setLoading,
@@ -71,7 +72,8 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
 
   const effectiveCompanyId = storeCompanyId ?? companyId;
   const isEmpty = !loading && !error && agents.length === 0;
-  const { pinnedAgents, overflowAgents } = useMemo(() => splitAgentsForOffice(agents), [agents]);
+  const pageSeats = useMemo(() => sceneLayout.seatLayout.filter((seat) => seat.visibleOn.includes('page')), [sceneLayout]);
+  const { pinnedAgents, overflowAgents } = useMemo(() => splitAgentsForOffice(agents, pageSeats.length), [agents, pageSeats.length]);
 
   if (mode === 'sidebar') {
     const visibleAgents = agents.slice(0, 4);
@@ -169,6 +171,8 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
 
       {!loading && !error && activeView === 'office' && pinnedAgents.length > 0 ? (
         <OfficeLayoutSection
+          pageSeats={pageSeats}
+          backgroundImage={sceneLayout.backgroundImage}
           pinnedAgents={pinnedAgents}
           overflowAgents={overflowAgents}
           recentEvents={recentEvents}
@@ -179,6 +183,7 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
 
       {!loading && !error && activeView === 'settings' ? (
         <SettingsSection
+          pageSeatCount={pageSeats.length}
           showBubbles={showBubbles}
           highlightIssues={highlightIssues}
           overflowCount={overflowAgents.length}
@@ -224,6 +229,8 @@ function TabButton({ active, label, onClick }: TabButtonProps) {
 }
 
 type OfficeLayoutSectionProps = {
+  pageSeats: SceneSeatLayout[];
+  backgroundImage: string | null;
   pinnedAgents: AgentSnapshot[];
   overflowAgents: AgentSnapshot[];
   recentEvents: ReturnType<typeof useOfficeStore.getState>['recentEvents'];
@@ -231,7 +238,7 @@ type OfficeLayoutSectionProps = {
   highlightIssues: boolean;
 };
 
-function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showBubbles, highlightIssues }: OfficeLayoutSectionProps) {
+function OfficeLayoutSection({ pageSeats, backgroundImage, pinnedAgents, overflowAgents, recentEvents, showBubbles, highlightIssues }: OfficeLayoutSectionProps) {
   return (
     <div className="do:grid do:gap-4 xl:do:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)]">
       <section className="do:overflow-hidden do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-4 do:shadow-sm">
@@ -240,29 +247,48 @@ function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showB
             <h2 className="do:text-base do:font-semibold do:text-slate-950">오피스 레이아웃</h2>
             <p className="do:text-sm do:text-slate-600">7개 좌석 고정 좌표 위에 에이전트를 배치하고 overflow roster는 별도 패널로 분리합니다.</p>
           </div>
-          <span className="do:rounded-full do:bg-orange-100 do:px-3 do:py-1 do:text-xs do:font-semibold do:text-orange-700">{pinnedAgents.length}/{OFFICE_SEATS.length} seats</span>
+          <span className="do:rounded-full do:bg-orange-100 do:px-3 do:py-1 do:text-xs do:font-semibold do:text-orange-700">{pinnedAgents.length}/{pageSeats.length} seats</span>
         </div>
 
-        <div className="do:relative do:min-h-[34rem] do:rounded-[1.75rem] do:border do:border-orange-100 do:bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_55%,#ffedd5_100%)] do:p-4">
+        <div className="do:relative do:min-h-[34rem] do:overflow-hidden do:rounded-[1.75rem] do:border do:border-orange-100 do:bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_55%,#ffedd5_100%)] do:p-4">
           <OfficeBackground />
+          {sanitizeSceneBackgroundImage(backgroundImage) ? (
+            <img
+              alt="오피스 배경"
+              className="do:absolute do:inset-0 do:h-full do:w-full do:object-cover"
+              src={sanitizeSceneBackgroundImage(backgroundImage) ?? undefined}
+            />
+          ) : null}
 
-          {OFFICE_SEATS.map((seat, index) => {
+          {pageSeats.map((seat, index) => {
             const agent = pinnedAgents[index];
             return (
-              <div key={seat.id} className="do:absolute do:-translate-x-1/2 do:-translate-y-1/2" style={{ left: seat.x, top: seat.y }}>
-                {agent ? (
-                  <OfficeAgentPin
-                    agent={agent}
-                    emphasizeIssue={highlightIssues}
-                    seatLabel={seat.label}
-                    showSpeechBubble={showBubbles}
-                  />
-                ) : (
-                  <div className="do:w-40 do:rounded-[1.5rem] do:border do:border-dashed do:border-orange-200 do:bg-white/80 do:px-4 do:py-3 do:text-sm do:text-slate-400">
-                    <p className="do:text-[11px] do:font-semibold do:uppercase do:tracking-[0.18em] do:text-orange-400">{seat.label}</p>
-                    <p className="do:mt-2">비어 있는 좌석</p>
-                  </div>
-                )}
+              <div key={seat.id}>
+                <div
+                  className="do:absolute do:-translate-x-1/2 do:-translate-y-1/2"
+                  style={{ left: seat.position.x, top: seat.position.y, zIndex: seat.layer }}
+                >
+                  {agent ? (
+                    <OfficeAgentPin
+                      agent={agent}
+                      emphasizeIssue={highlightIssues}
+                      seatLabel={seat.label}
+                      showSpeechBubble={showBubbles}
+                    />
+                  ) : (
+                    <div className="do:w-40 do:rounded-[1.5rem] do:border do:border-dashed do:border-orange-200 do:bg-white/80 do:px-4 do:py-3 do:text-sm do:text-slate-400">
+                      <p className="do:text-[11px] do:font-semibold do:uppercase do:tracking-[0.18em] do:text-orange-400">{seat.label}</p>
+                      <p className="do:mt-2">비어 있는 좌석</p>
+                    </div>
+                  )}
+                </div>
+                <div
+                  className="do:absolute do:-translate-x-1/2 do:-translate-y-1/2 do:rounded-full do:bg-white/90 do:px-3 do:py-1 do:text-[11px] do:font-semibold do:text-slate-700 do:shadow-sm"
+                  data-seat-nameplate={seat.id}
+                  style={{ left: seat.nameplate.position.x, top: seat.nameplate.position.y, zIndex: seat.nameplate.layer }}
+                >
+                  {seat.label}
+                </div>
               </div>
             );
           })}
@@ -308,6 +334,7 @@ function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showB
 }
 
 type SettingsSectionProps = {
+  pageSeatCount: number;
   showBubbles: boolean;
   highlightIssues: boolean;
   overflowCount: number;
@@ -316,6 +343,7 @@ type SettingsSectionProps = {
 };
 
 function SettingsSection({
+  pageSeatCount,
   showBubbles,
   highlightIssues,
   overflowCount,
@@ -349,7 +377,7 @@ function SettingsSection({
       <div className="do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-5 do:shadow-sm">
         <h2 className="do:text-base do:font-semibold do:text-slate-950">레이아웃 구조</h2>
         <div className="do:mt-4 do:grid do:gap-3">
-          <StatusRow label="고정 좌석" value={`${OFFICE_SEATS.length}개`} />
+          <StatusRow label="고정 좌석" value={`${pageSeatCount}개`} />
           <StatusRow label="overflow roster" value={overflowCount > 0 ? `${overflowCount}명 별도 표시` : '없음'} />
           <StatusRow label="말풍선" value={showBubbles ? '켜짐' : '꺼짐'} />
           <StatusRow label="오류 강조" value={highlightIssues ? '켜짐' : '꺼짐'} />

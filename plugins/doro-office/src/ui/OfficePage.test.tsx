@@ -3,6 +3,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SCENE_LAYOUT } from '../shared/scene-layout';
 import type { AgentRosterState, AgentSnapshot } from '../shared/types';
 import { useOfficeStore } from './store';
 
@@ -100,6 +101,44 @@ describe('OfficePageView', () => {
     expect(container.textContent).toContain('Agent 8');
     expect(container.textContent).toContain('최근 이벤트 timeline');
     expect(container.querySelectorAll('article[aria-label$="좌석 카드"]').length).toBe(7);
+  });
+
+  it('reconnects persisted scene layout to background, seat position, and nameplate rendering', async () => {
+    await renderOfficePage();
+
+    const initialSeat = container.querySelector('article[aria-label="Agent 1 좌석 카드"]')?.parentElement;
+    expect(initialSeat).toBeTruthy();
+    expect(initialSeat?.style.left).toBe(DEFAULT_SCENE_LAYOUT.seatLayout[0]?.position.x);
+    expect(initialSeat?.style.top).toBe(DEFAULT_SCENE_LAYOUT.seatLayout[0]?.position.y);
+    expect(container.querySelector('img[alt="오피스 배경"]')).toBeNull();
+
+    await act(async () => {
+      useOfficeStore.getState().replaceSceneLayout({
+        backgroundImage: 'paperclip://custom-office.png',
+        seatLayout: [
+          {
+            id: 'desk-1',
+            label: 'Runtime wiring desk',
+            position: { x: '28%', y: '38%' },
+            layer: 5,
+            nameplate: { position: { x: '30%', y: '47%' }, layer: 6 },
+          },
+        ],
+      });
+      await Promise.resolve();
+    });
+
+    const updatedSeat = container.querySelector('article[aria-label="Agent 1 좌석 카드"]')?.parentElement;
+    expect(updatedSeat?.style.left).toBe('28%');
+    expect(updatedSeat?.style.top).toBe('38%');
+    expect(updatedSeat?.style.zIndex).toBe('5');
+    expect(container.querySelector('img[alt="오피스 배경"]')?.getAttribute('src')).toBe('paperclip://custom-office.png');
+
+    const nameplate = container.querySelector('[data-seat-nameplate="desk-1"]') as HTMLDivElement | null;
+    expect(nameplate?.textContent).toContain('Runtime wiring desk');
+    expect(nameplate?.style.left).toBe('30%');
+    expect(nameplate?.style.top).toBe('47%');
+    expect(nameplate?.style.zIndex).toBe('6');
   });
 
   it('switches to settings view and toggles display options', async () => {
