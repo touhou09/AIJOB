@@ -114,6 +114,16 @@ export const DEFAULT_SCENE_LAYOUT: SceneLayout = {
   seatLayout: DEFAULT_SEAT_LAYOUT,
 };
 
+const SAFE_PAPERCLIP_BACKGROUND_IMAGE_PATTERN = /^paperclip:\/\/[A-Za-z0-9._~!$&'*+=:@%/-]+$/;
+
+export function sanitizeSceneBackgroundImage(backgroundImage: string | null | undefined) {
+  if (!backgroundImage) {
+    return null;
+  }
+
+  return SAFE_PAPERCLIP_BACKGROUND_IMAGE_PATTERN.test(backgroundImage) ? backgroundImage : null;
+}
+
 function mergeSeatLayout(defaultSeat: SceneSeatLayout, seatOverride?: SceneSeatLayoutInput): SceneSeatLayout {
   return {
     ...defaultSeat,
@@ -143,7 +153,7 @@ export function normalizeSceneLayout(layout?: SceneLayoutInput): SceneLayout {
 
   return {
     version: 1,
-    backgroundImage: layout?.backgroundImage ?? DEFAULT_SCENE_LAYOUT.backgroundImage,
+    backgroundImage: sanitizeSceneBackgroundImage(layout?.backgroundImage),
     seatLayout: DEFAULT_SCENE_LAYOUT.seatLayout.map((defaultSeat) => mergeSeatLayout(defaultSeat, seatsById.get(defaultSeat.id))),
   };
 }

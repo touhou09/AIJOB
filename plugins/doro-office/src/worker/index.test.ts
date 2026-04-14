@@ -185,6 +185,48 @@ describe('doro-office worker bridge', () => {
     });
   });
 
+  it('rejects non-paperclip background image URLs when saving and loading scene layout', async () => {
+    const savedLayout = await harness.performAction<{
+      backgroundImage: string | null;
+    }>('save-scene-layout', {
+      companyId,
+      layout: {
+        backgroundImage: 'https://attacker.example/track.png',
+      },
+    });
+
+    expect(savedLayout.backgroundImage).toBeNull();
+
+    const injectedLayout = await harness.performAction<{
+      backgroundImage: string | null;
+    }>('save-scene-layout', {
+      companyId,
+      layout: {
+        backgroundImage: 'paperclip://office.png), url(https://attacker.example/track.png',
+      },
+    });
+
+    expect(injectedLayout.backgroundImage).toBeNull();
+
+    await harness.ctx.state.set(
+      {
+        scopeKind: 'company',
+        scopeId: companyId,
+        namespace: 'scene-layout',
+        stateKey: 'layout',
+      },
+      {
+        backgroundImage: 'https://attacker.example/reload.png',
+      },
+    );
+
+    const reloadedLayout = await harness.getData<{
+      backgroundImage: string | null;
+    }>('scene-layout', { companyId });
+
+    expect(reloadedLayout.backgroundImage).toBeNull();
+  });
+
   it('refreshes the roster through action bridge', async () => {
     const roster = await harness.performAction<{
       companyId: string;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PluginHostContext } from '@paperclipai/plugin-sdk/ui';
 import { usePluginAction, usePluginData } from '@paperclipai/plugin-sdk/ui';
 import type { AgentSnapshot, SceneLayout } from '../shared/types';
-import { type SceneLayoutInput, type SceneSeatLayout, type SceneSeatLayoutInput } from '../shared/scene-layout';
+import { sanitizeSceneBackgroundImage, type SceneLayoutInput, type SceneSeatLayout, type SceneSeatLayoutInput } from '../shared/scene-layout';
 import { AgentCard } from './AgentCard';
 import { OfficeAgentPin } from './OfficeAgentPin';
 import { useOfficeStore } from './store';
@@ -754,12 +754,14 @@ type OfficeBackgroundProps = {
 };
 
 function OfficeBackground({ backgroundImage }: OfficeBackgroundProps) {
-  if (backgroundImage) {
+  const safeBackgroundImage = sanitizeSceneBackgroundImage(backgroundImage);
+
+  if (safeBackgroundImage) {
     return (
       <div
         aria-label="scene background image"
         className="do:absolute do:inset-0 do:rounded-[1.5rem] do:bg-cover do:bg-center do:opacity-90"
-        style={{ backgroundImage: `url(${backgroundImage})` }}
+        style={{ backgroundImage: `url(${safeBackgroundImage})` }}
       />
     );
   }

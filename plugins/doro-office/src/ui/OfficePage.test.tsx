@@ -309,4 +309,28 @@ describe('OfficePageView', () => {
       }),
     );
   });
+
+  it('does not render persisted external background image URLs', async () => {
+    await renderOfficePage({
+      sceneLayout: {
+        ...persistedSceneLayout,
+        backgroundImage: 'https://attacker.example/track.png',
+      },
+    });
+
+    expect(container.querySelector('[aria-label="scene background image"]')).toBeNull();
+    expect(container.innerHTML).not.toContain('https://attacker.example/track.png');
+  });
+
+  it('does not render background images from malformed paperclip URLs', async () => {
+    await renderOfficePage({
+      sceneLayout: {
+        ...persistedSceneLayout,
+        backgroundImage: 'paperclip://office.png), url(https://attacker.example/track.png',
+      },
+    });
+
+    expect(container.querySelector('[aria-label="scene background image"]')).toBeNull();
+    expect(container.innerHTML).not.toContain('attacker.example');
+  });
 });
