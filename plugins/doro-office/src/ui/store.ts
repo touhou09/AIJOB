@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import type { AgentRosterPayload, AgentSnapshot } from '../shared/types';
+import { DEFAULT_SCENE_LAYOUT, normalizeSceneLayout } from '../shared/scene-layout';
+import type { SceneLayoutInput } from '../shared/scene-layout';
+import type { AgentRosterPayload, AgentSnapshot, SceneLayout } from '../shared/types';
 
 const MAX_TIMELINE_EVENTS = 10;
 
@@ -25,9 +27,11 @@ type OfficeStoreState = {
   showBubbles: boolean;
   highlightIssues: boolean;
   recentEvents: TimelineEvent[];
+  sceneLayout: SceneLayout;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   replaceRoster: (payload: AgentRosterPayload) => void;
+  replaceSceneLayout: (layout: SceneLayoutInput) => void;
   setActiveView: (view: OfficeViewMode) => void;
   toggleShowBubbles: () => void;
   toggleHighlightIssues: () => void;
@@ -67,6 +71,7 @@ const initialState = {
   showBubbles: true,
   highlightIssues: true,
   recentEvents: [] as TimelineEvent[],
+  sceneLayout: DEFAULT_SCENE_LAYOUT,
 };
 
 export const useOfficeStore = create<OfficeStoreState>((set) => ({
@@ -86,6 +91,16 @@ export const useOfficeStore = create<OfficeStoreState>((set) => ({
       loading: false,
       error: null,
       recentEvents: [...buildTimelineEvents(state.agents, payload.agents, payload.fetchedAt), ...state.recentEvents].slice(0, MAX_TIMELINE_EVENTS),
+    }));
+  },
+  replaceSceneLayout: (layout) => {
+    set((state) => ({
+      sceneLayout: normalizeSceneLayout({
+        ...state.sceneLayout,
+        ...layout,
+        backgroundImage: layout.backgroundImage ?? state.sceneLayout.backgroundImage,
+        seatLayout: layout.seatLayout ?? state.sceneLayout.seatLayout,
+      }),
     }));
   },
   setActiveView: (activeView) => {
