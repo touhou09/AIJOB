@@ -3,6 +3,8 @@ import { formatHeartbeatAge } from './time';
 
 type AgentCardProps = {
   agent: AgentSnapshot;
+  isSelected?: boolean;
+  onSelect?: (agent: AgentSnapshot) => void;
 };
 
 const statusToneMap: Record<AgentSnapshot['status'], string> = {
@@ -29,9 +31,9 @@ function toStatusLabel(status: AgentSnapshot['status']) {
   return status.replace(/_/g, ' ');
 }
 
-export function AgentCard({ agent }: AgentCardProps) {
-  return (
-    <article className="do:flex do:h-full do:flex-col do:gap-4 do:rounded-3xl do:border do:border-orange-200 do:bg-white do:p-5 do:shadow-sm">
+export function AgentCard({ agent, isSelected = false, onSelect }: AgentCardProps) {
+  const content = (
+    <>
       <div className="do:flex do:items-start do:gap-4">
         <div className="do:flex do:size-16 do:shrink-0 do:items-center do:justify-center do:rounded-full do:bg-orange-50 do:ring-1 do:ring-orange-200">
           <span aria-hidden="true" className={`do:block do:size-6 do:rounded-full ${statusDotMap[agent.status]}`} />
@@ -50,6 +52,24 @@ export function AgentCard({ agent }: AgentCardProps) {
           <dd className="do:mt-1 do:font-medium do:text-slate-900">{formatHeartbeatAge(agent.lastHeartbeatAt)}</dd>
         </div>
       </dl>
-    </article>
+    </>
   );
+
+  if (onSelect) {
+    return (
+      <button
+        aria-label={`${agent.name} 상세 패널 열기`}
+        aria-pressed={isSelected}
+        className={`do:flex do:h-full do:w-full do:flex-col do:gap-4 do:rounded-3xl do:border do:bg-white do:p-5 do:text-left do:shadow-sm do:transition hover:do:border-orange-300 hover:do:shadow ${
+          isSelected ? 'do:border-orange-400 do:ring-2 do:ring-orange-200' : 'do:border-orange-200'
+        }`}
+        onClick={() => onSelect(agent)}
+        type="button"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <article className="do:flex do:h-full do:flex-col do:gap-4 do:rounded-3xl do:border do:border-orange-200 do:bg-white do:p-5 do:shadow-sm">{content}</article>;
 }
