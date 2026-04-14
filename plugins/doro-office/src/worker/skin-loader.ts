@@ -135,11 +135,16 @@ async function loadCustomSkin(entry: Dirent, skinsRoot: string, rootRealPath: st
     if (!startsWithinPath(manifestDir, resolvedAssetPath)) {
       throw new Error(`states.${state} escapes the skin directory`);
     }
-    if (!(await ensureRegularFile(resolvedAssetPath, statFn))) {
+
+    const realAssetPath = await realpathFn(resolvedAssetPath);
+    if (!startsWithinPath(manifestDir, realAssetPath)) {
+      throw new Error(`states.${state} escapes the skin directory`);
+    }
+    if (!(await ensureRegularFile(realAssetPath, statFn))) {
       throw new Error(`states.${state} must reference a regular file`);
     }
 
-    resolvedAssets[state] = pathToFileURL(resolvedAssetPath).href;
+    resolvedAssets[state] = pathToFileURL(realAssetPath).href;
   }
 
   return {
