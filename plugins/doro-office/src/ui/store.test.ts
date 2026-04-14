@@ -141,4 +141,39 @@ describe('useOfficeStore', () => {
     });
     expect(state.sceneLayout.seatLayout).toHaveLength(DEFAULT_SCENE_LAYOUT.seatLayout.length);
   });
+
+  it('merges partial seat patches onto the current scene layout', () => {
+    const store = useOfficeStore.getState();
+
+    store.replaceSceneLayout({
+      seatLayout: [
+        {
+          id: 'desk-1',
+          label: 'Runtime wiring desk',
+          layer: 5,
+          nameplate: { position: { x: '18%', y: '36%' }, layer: 7 },
+        },
+      ],
+    });
+    store.replaceSceneLayout({
+      seatLayout: [
+        {
+          id: 'desk-1',
+          position: { x: '28%', y: '38%' },
+        },
+      ],
+    });
+
+    const state = useOfficeStore.getState();
+    expect(state.sceneLayout.seatLayout[0]).toMatchObject({
+      id: 'desk-1',
+      label: 'Runtime wiring desk',
+      position: { x: '28%', y: '38%' },
+      layer: 5,
+      nameplate: {
+        position: { x: '18%', y: '36%' },
+        layer: 7,
+      },
+    });
+  });
 });
