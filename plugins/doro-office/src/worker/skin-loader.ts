@@ -1,6 +1,7 @@
 import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { Dirent } from 'node:fs';
 import type { DororongVisualState, SkinCatalog, SkinMetadata, SkinStateAssets } from '../shared/types';
 
@@ -138,7 +139,7 @@ async function loadCustomSkin(entry: Dirent, skinsRoot: string, rootRealPath: st
       throw new Error(`states.${state} must reference a regular file`);
     }
 
-    resolvedAssets[state] = resolvedAssetPath;
+    resolvedAssets[state] = pathToFileURL(resolvedAssetPath).href;
   }
 
   return {

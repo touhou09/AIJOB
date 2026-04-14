@@ -57,8 +57,8 @@ const skinCatalog: SkinCatalog = {
       manifestPath: '/Users/test/.hermes/skins/night-shift/skin.json',
       directoryPath: '/Users/test/.hermes/skins/night-shift',
       stateAssets: {
-        idle: '/Users/test/.hermes/skins/night-shift/idle.png',
-        error: '/Users/test/.hermes/skins/night-shift/error.png',
+        idle: 'file:///Users/test/.hermes/skins/night-shift/idle.png',
+        error: 'file:///Users/test/.hermes/skins/night-shift/error.png',
       },
       availableStates: ['idle', 'error'],
       description: 'Late-night dororong',
@@ -155,7 +155,7 @@ describe('OfficePageView', () => {
 
     const selectedCharacter = container.querySelector('img[alt="Agent 1 Night Shift 캐릭터 (idle)"]');
     expect(selectedCharacter).toBeTruthy();
-    expect(selectedCharacter?.getAttribute('src')).toBe('/Users/test/.hermes/skins/night-shift/idle.png');
+    expect(selectedCharacter?.getAttribute('src')).toBe('file:///Users/test/.hermes/skins/night-shift/idle.png');
   });
 
   it('switches to settings view, toggles display options, and persists selected skin changes', async () => {

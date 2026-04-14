@@ -1,6 +1,7 @@
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadAvailableSkins } from './skin-loader';
 
@@ -59,6 +60,7 @@ describe('loadAvailableSkins', () => {
     });
 
     const catalog = await loadAvailableSkins({ homeDir, selectedSkin: 'night-shift' });
+    const realSkinDir = await realpath(skinDir);
 
     expect(catalog.selectedSkin).toBe('night-shift');
     expect(catalog.skins).toHaveLength(2);
@@ -72,7 +74,8 @@ describe('loadAvailableSkins', () => {
       }),
     );
     expect(catalog.skins[1]?.manifestPath).toContain('/night-shift/skin.json');
-    expect(catalog.skins[1]?.stateAssets.idle).toContain('/night-shift/idle.png');
+    expect(catalog.skins[1]?.stateAssets.idle).toBe(pathToFileURL(join(realSkinDir, 'idle.png')).href);
+    expect(catalog.skins[1]?.stateAssets.working).toBe(pathToFileURL(join(realSkinDir, 'working.png')).href);
     expect(catalog.warnings).toEqual([]);
   });
 
