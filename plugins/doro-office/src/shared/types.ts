@@ -1,4 +1,5 @@
 import type { Agent } from '@paperclipai/plugin-sdk';
+import type { SceneLayout, SceneSeatLayout, SceneSeatNameplateLayout, SceneSurface } from './scene-layout';
 
 export type DororongVisualState = 'idle' | 'working' | 'error' | 'sleeping';
 
@@ -60,3 +61,5 @@ export type AgentRosterPayload = {
 export type AgentRosterState = AgentRosterPayload & {
   error?: string;
 };
+
+export type { SceneLayout, SceneSeatLayout, SceneSeatNameplateLayout, SceneSurface };

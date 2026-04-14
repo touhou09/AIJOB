@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_SCENE_LAYOUT } from '../shared/scene-layout';
 import { useOfficeStore } from './store';
 
 describe('useOfficeStore', () => {
@@ -17,6 +18,7 @@ describe('useOfficeStore', () => {
     expect(state.showBubbles).toBe(true);
     expect(state.highlightIssues).toBe(true);
     expect(state.recentEvents).toEqual([]);
+    expect(state.sceneLayout).toEqual(DEFAULT_SCENE_LAYOUT);
   });
 
   it('replaces roster payload and clears errors', () => {
@@ -80,6 +82,17 @@ describe('useOfficeStore', () => {
       fetchedAt: '2026-04-11T00:00:00.000Z',
       source: 'refresh',
     });
+    store.replaceSceneLayout({
+      backgroundImage: 'paperclip://scene.png',
+      seatLayout: [
+        {
+          id: 'desk-1',
+          position: { x: '18%', y: '28%' },
+          layer: 3,
+          nameplate: { position: { x: '18%', y: '36%' }, layer: 4 },
+        },
+      ],
+    });
     store.setActiveView('settings');
     store.toggleShowBubbles();
     store.toggleHighlightIssues();
@@ -95,6 +108,7 @@ describe('useOfficeStore', () => {
     expect(state.showBubbles).toBe(true);
     expect(state.highlightIssues).toBe(true);
     expect(state.recentEvents).toEqual([]);
+    expect(state.sceneLayout).toEqual(DEFAULT_SCENE_LAYOUT);
   });
 
   it('sets an error and stops loading', () => {
@@ -102,5 +116,29 @@ describe('useOfficeStore', () => {
     const state = useOfficeStore.getState();
     expect(state.loading).toBe(false);
     expect(state.error).toBe('network');
+  });
+
+  it('replaces the persisted scene layout schema', () => {
+    useOfficeStore.getState().replaceSceneLayout({
+      backgroundImage: 'paperclip://office-scene.png',
+      seatLayout: [
+        {
+          id: 'desk-3',
+          position: { x: '58%', y: '22%' },
+          layer: 6,
+          nameplate: { position: { x: '58%', y: '30%' }, layer: 7 },
+        },
+      ],
+    });
+
+    const state = useOfficeStore.getState();
+    expect(state.sceneLayout.backgroundImage).toBe('paperclip://office-scene.png');
+    expect(state.sceneLayout.seatLayout[2]).toMatchObject({
+      id: 'desk-3',
+      position: { x: '58%', y: '22%' },
+      layer: 6,
+      nameplate: { position: { x: '58%', y: '30%' }, layer: 7 },
+    });
+    expect(state.sceneLayout.seatLayout).toHaveLength(DEFAULT_SCENE_LAYOUT.seatLayout.length);
   });
 });
