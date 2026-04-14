@@ -8,7 +8,14 @@ const manifest: PaperclipPluginManifestV1 = {
   description: 'Realtime office-layout Hermes agent roster with timeline and pulse widget for Paperclip company dashboards.',
   author: 'team-frontend',
   categories: ['ui'],
-  capabilities: ['agents.read', 'ui.page.register', 'ui.sidebar.register', 'ui.dashboardWidget.register'],
+  capabilities: [
+    'agents.read',
+    'plugin.state.read',
+    'plugin.state.write',
+    'ui.page.register',
+    'ui.sidebar.register',
+    'ui.dashboardWidget.register',
+  ],
   entrypoints: {
     worker: 'dist/worker.js',
     ui: 'dist/ui',

@@ -58,9 +58,9 @@ describe('loadAvailableSkins', () => {
       description: 'Late-night dororong',
     });
 
-    const catalog = await loadAvailableSkins({ homeDir });
+    const catalog = await loadAvailableSkins({ homeDir, selectedSkin: 'night-shift' });
 
-    expect(catalog.selectedSkin).toBe('dororong');
+    expect(catalog.selectedSkin).toBe('night-shift');
     expect(catalog.skins).toHaveLength(2);
     expect(catalog.skins[1]).toEqual(
       expect.objectContaining({
@@ -74,6 +74,25 @@ describe('loadAvailableSkins', () => {
     expect(catalog.skins[1]?.manifestPath).toContain('/night-shift/skin.json');
     expect(catalog.skins[1]?.stateAssets.idle).toContain('/night-shift/idle.png');
     expect(catalog.warnings).toEqual([]);
+  });
+
+  it('falls back to builtin selectedSkin when the requested skin is unavailable', async () => {
+    const homeDir = await createTempHome();
+    const skinDir = join(homeDir, '.hermes', 'skins', 'night-shift');
+    await mkdir(skinDir, { recursive: true });
+    await writeFile(join(skinDir, 'idle.png'), 'idle', 'utf8');
+    await writeJson(join(skinDir, 'skin.json'), {
+      id: 'night-shift',
+      name: 'Night Shift',
+      states: {
+        idle: './idle.png',
+      },
+    });
+
+    const catalog = await loadAvailableSkins({ homeDir, selectedSkin: 'missing-skin' });
+
+    expect(catalog.selectedSkin).toBe('dororong');
+    expect(catalog.skins.map((skin) => skin.id)).toEqual(['dororong', 'night-shift']);
   });
 
   it('skips invalid manifests and path traversal without breaking the builtin fallback', async () => {
@@ -93,7 +112,7 @@ describe('loadAvailableSkins', () => {
     await mkdir(malformedDir, { recursive: true });
     await writeFile(join(malformedDir, 'skin.json'), '{not-json', 'utf8');
 
-    const catalog = await loadAvailableSkins({ homeDir });
+    const catalog = await loadAvailableSkins({ homeDir, selectedSkin: 'broken' });
 
     expect(catalog.selectedSkin).toBe('dororong');
     expect(catalog.skins).toHaveLength(1);
