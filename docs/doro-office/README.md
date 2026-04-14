@@ -20,6 +20,7 @@
 - [02-alternative-patterns.md](02-alternative-patterns.md) — 비교 가능한 다른 모니터링 시스템 패턴
 - [03-doro-office-plan.md](03-doro-office-plan.md) — doro-office MVP 0~3 착수 전 계획 원본
 - [04-decisions-snapshot.md](04-decisions-snapshot.md) — 확정 결정 스냅샷 + 2026-04-12 기준 수렴 메모
+- [05-release-log.md](05-release-log.md) — `v0.0.1` 릴리즈 태그와 배포 기록
 
 ## 현재 기준 읽는 순서
 1. `~/AIJOB/plugins/doro-office/README.md` — 실제 설치/기능 범위
