@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PluginHostContext } from '@paperclipai/plugin-sdk/ui';
 import type { AgentSnapshot } from '../shared/types';
 import { AgentCard } from './AgentCard';
@@ -28,6 +28,7 @@ function toTimelineLabel(status: AgentSnapshot['status']) {
 export function OfficePageView({ context, mode }: OfficePageViewProps) {
   const companyId = context.companyId;
   const { roster, loading, error, refresh } = useAutoRefreshingRoster(companyId);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const {
     agents,
@@ -49,6 +50,7 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
 
   useEffect(() => {
     reset();
+    setSelectedAgentId(null);
   }, [companyId, reset]);
 
   useEffect(() => {
@@ -72,6 +74,13 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
   const effectiveCompanyId = storeCompanyId ?? companyId;
   const isEmpty = !loading && !error && agents.length === 0;
   const { pinnedAgents, overflowAgents } = useMemo(() => splitAgentsForOffice(agents), [agents]);
+  const selectedAgent = useMemo(() => agents.find((agent) => agent.id === selectedAgentId) ?? null, [agents, selectedAgentId]);
+
+  useEffect(() => {
+    if (selectedAgentId && !agents.some((agent) => agent.id === selectedAgentId)) {
+      setSelectedAgentId(null);
+    }
+  }, [agents, selectedAgentId]);
 
   if (mode === 'sidebar') {
     const visibleAgents = agents.slice(0, 4);
@@ -172,8 +181,10 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
           pinnedAgents={pinnedAgents}
           overflowAgents={overflowAgents}
           recentEvents={recentEvents}
+          selectedAgent={selectedAgent}
           showBubbles={showBubbles}
           highlightIssues={highlightIssues}
+          onSelectAgent={setSelectedAgentId}
         />
       ) : null}
 
@@ -227,11 +238,13 @@ type OfficeLayoutSectionProps = {
   pinnedAgents: AgentSnapshot[];
   overflowAgents: AgentSnapshot[];
   recentEvents: ReturnType<typeof useOfficeStore.getState>['recentEvents'];
+  selectedAgent: AgentSnapshot | null;
   showBubbles: boolean;
   highlightIssues: boolean;
+  onSelectAgent: (agentId: string | null) => void;
 };
 
-function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showBubbles, highlightIssues }: OfficeLayoutSectionProps) {
+function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, selectedAgent, showBubbles, highlightIssues, onSelectAgent }: OfficeLayoutSectionProps) {
   return (
     <div className="do:grid do:gap-4 xl:do:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)]">
       <section className="do:overflow-hidden do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-4 do:shadow-sm">
@@ -254,6 +267,8 @@ function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showB
                   <OfficeAgentPin
                     agent={agent}
                     emphasizeIssue={highlightIssues}
+                    isSelected={selectedAgent?.id === agent.id}
+                    onSelect={() => onSelectAgent(agent.id)}
                     seatLabel={seat.label}
                     showSpeechBubble={showBubbles}
                   />
@@ -270,6 +285,8 @@ function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showB
       </section>
 
       <aside className="do:flex do:flex-col do:gap-4">
+        <AgentDetailPanel agent={selectedAgent} />
+
         <section className="do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-4 do:shadow-sm">
           <h2 className="do:text-base do:font-semibold do:text-slate-950">최근 이벤트 timeline</h2>
           {recentEvents.length > 0 ? (
@@ -295,7 +312,7 @@ function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showB
           {overflowAgents.length > 0 ? (
             <div className="do:mt-4 do:grid do:gap-3">
               {overflowAgents.map((agent) => (
-                <AgentCard key={agent.id} agent={agent} />
+                <AgentCard key={agent.id} agent={agent} isSelected={selectedAgent?.id === agent.id} onSelect={() => onSelectAgent(agent.id)} />
               ))}
             </div>
           ) : (
@@ -303,6 +320,49 @@ function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showB
           )}
         </section>
       </aside>
+    </div>
+  );
+}
+
+function AgentDetailPanel({ agent }: { agent: AgentSnapshot | null }) {
+  if (!agent) {
+    return (
+      <section className="do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-4 do:shadow-sm">
+        <h2 className="do:text-base do:font-semibold do:text-slate-950">agent detail panel</h2>
+        <p className="do:mt-3 do:text-sm do:leading-6 do:text-slate-600">에이전트를 선택하면 이름, 역할, 현재 상태, 마지막 업데이트 시간, 최근 작업 요약을 여기에서 확인할 수 있습니다.</p>
+      </section>
+    );
+  }
+
+  const lastUpdatedLabel = agent.lastHeartbeatAt ? new Date(agent.lastHeartbeatAt).toLocaleString() : 'heartbeat 없음';
+  const recentWorkSummary = agent.recentWorkSummary ?? '최근 작업 요약 데이터가 아직 없습니다.';
+
+  return (
+    <section className="do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-4 do:shadow-sm">
+      <div className="do:flex do:items-start do:justify-between do:gap-3">
+        <div>
+          <h2 className="do:text-base do:font-semibold do:text-slate-950">agent detail panel</h2>
+          <p className="do:mt-1 do:text-sm do:text-slate-600">agent-local 정보에 집중한 상세 패널입니다.</p>
+        </div>
+        <span className="do:rounded-full do:bg-orange-100 do:px-3 do:py-1 do:text-xs do:font-semibold do:text-orange-700">selected</span>
+      </div>
+
+      <dl className="do:mt-4 do:grid do:gap-3 do:text-sm">
+        <DetailRow label="이름" value={agent.name} />
+        <DetailRow label="역할" value={agent.role} />
+        <DetailRow label="현재 상태" value={agent.status.replace(/_/g, ' ')} />
+        <DetailRow label="마지막 업데이트" value={lastUpdatedLabel} />
+        <DetailRow label="최근 작업 요약" value={recentWorkSummary} />
+      </dl>
+    </section>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="do:rounded-2xl do:bg-slate-50 do:px-4 do:py-3">
+      <dt className="do:text-xs do:font-medium do:uppercase do:tracking-wide do:text-slate-500">{label}</dt>
+      <dd className="do:mt-1 do:text-sm do:font-semibold do:text-slate-950">{value}</dd>
     </div>
   );
 }

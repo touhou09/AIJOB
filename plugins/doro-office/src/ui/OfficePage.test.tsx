@@ -21,6 +21,7 @@ function buildAgent(index: number): AgentSnapshot {
     role: 'engineer',
     status: index === 2 ? 'error' : index % 2 === 0 ? 'active' : 'idle',
     lastHeartbeatAt: `2026-04-11T00:00:0${index}.000Z`,
+    recentWorkSummary: index === 2 ? null : `Agent ${index} 최근 작업 요약`,
   };
 }
 
@@ -99,7 +100,7 @@ describe('OfficePageView', () => {
     expect(container.textContent).toContain('overflow roster');
     expect(container.textContent).toContain('Agent 8');
     expect(container.textContent).toContain('최근 이벤트 timeline');
-    expect(container.querySelectorAll('article[aria-label$="좌석 카드"]').length).toBe(7);
+    expect(container.querySelectorAll('button[aria-label$="상세 패널 열기"]').length).toBe(8);
   });
 
   it('switches to settings view and toggles display options', async () => {
@@ -157,6 +158,25 @@ describe('OfficePageView', () => {
     });
     expect(container.textContent).toContain('에이전트 로스터를 불러오지 못했습니다.');
     expect(container.textContent).toContain('network failed');
+  });
+
+  it('opens the detail panel from a seat click and shows a fallback recent work summary', async () => {
+    await renderOfficePage();
+
+    expect(container.textContent).toContain('agent detail panel');
+    expect(container.textContent).toContain('에이전트를 선택하면 이름, 역할, 현재 상태, 마지막 업데이트 시간, 최근 작업 요약을 여기에서 확인할 수 있습니다.');
+
+    const agentButton = container.querySelector('button[aria-label="Agent 2 상세 패널 열기"]');
+    expect(agentButton).toBeTruthy();
+
+    await act(async () => {
+      agentButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('이름');
+    expect(container.textContent).toContain('Agent 2');
+    expect(container.textContent).toContain('최근 작업 요약 데이터가 아직 없습니다.');
   });
 
   it('refreshes the roster every second without subscribing to a stream bridge', async () => {

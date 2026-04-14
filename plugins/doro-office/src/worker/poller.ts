@@ -38,6 +38,27 @@ function toIsoString(value: Date | string | null) {
   return value.toISOString();
 }
 
+function summarizeRecentWork(agent: Agent) {
+  if (typeof agent.title === 'string' && agent.title.trim().length > 0) {
+    return agent.title.trim();
+  }
+
+  switch (agent.status) {
+    case 'active':
+    case 'running':
+      return `${agent.role} 에이전트가 최근 작업을 진행 중입니다.`;
+    case 'error':
+      return `${agent.role} 에이전트가 최근 오류를 보고했습니다.`;
+    case 'pending_approval':
+      return `${agent.role} 에이전트의 최근 작업이 승인 대기 중입니다.`;
+    case 'paused':
+    case 'terminated':
+      return `${agent.role} 에이전트가 최근 작업 이후 일시 정지 상태입니다.`;
+    default:
+      return `${agent.role} 에이전트가 최근 작업 이후 대기 중입니다.`;
+  }
+}
+
 function toAgentSnapshot(agent: Agent): AgentSnapshot {
   return {
     id: agent.id,
@@ -45,6 +66,7 @@ function toAgentSnapshot(agent: Agent): AgentSnapshot {
     role: agent.role,
     status: agent.status,
     lastHeartbeatAt: toIsoString(agent.lastHeartbeatAt),
+    recentWorkSummary: summarizeRecentWork(agent),
   };
 }
 
@@ -89,7 +111,8 @@ function hasRosterChanged(previous: AgentRosterState | null, next: AgentRosterSt
       agent.name !== nextAgent.name ||
       agent.role !== nextAgent.role ||
       agent.status !== nextAgent.status ||
-      agent.lastHeartbeatAt !== nextAgent.lastHeartbeatAt
+      agent.lastHeartbeatAt !== nextAgent.lastHeartbeatAt ||
+      agent.recentWorkSummary !== nextAgent.recentWorkSummary
     );
   });
 }
