@@ -49,10 +49,11 @@ describe('doro-office worker bridge', () => {
     });
   });
 
-  it('returns sorted roster data and reuses the initial fetch', async () => {
+  it('returns sorted roster data with the paperclip host and reuses the initial fetch', async () => {
     const listSpy = vi.spyOn(harness.ctx.agents, 'list');
     const roster = await harness.getData<{
       companyId: string;
+      host: string;
       source: string;
       agents: Array<{
         name: string;
@@ -61,6 +62,7 @@ describe('doro-office worker bridge', () => {
     }>('agent-roster', { companyId });
 
     expect(roster.companyId).toBe(companyId);
+    expect(roster.host).toBe('paperclip');
     expect(roster.source).toBe('initial');
     expect(roster.agents.map((agent) => agent.name)).toEqual(['Alpha', 'Bravo']);
     expect(roster.agents[0]?.lastHeartbeatAt).toBe('2026-04-11T00:00:00.000Z');
@@ -68,10 +70,41 @@ describe('doro-office worker bridge', () => {
   });
 
   it('returns an explicit error payload when company context is missing', async () => {
-    const roster = await harness.getData<{ error?: string; agents: unknown[] }>('agent-roster', {});
+    const roster = await harness.getData<{ host: string; error?: string; agents: unknown[] }>('agent-roster', {});
 
+    expect(roster.host).toBe('paperclip');
     expect(roster.error).toBe('companyId is required');
     expect(roster.agents).toEqual([]);
+  });
+
+  it('normalizes an OpenClaw read-only roster through the same data bridge contract', async () => {
+    const roster = await harness.getData<{
+      companyId: string;
+      host: string;
+      source: string;
+      agents: Array<{
+        id: string;
+        name: string;
+        role: string;
+        status: string;
+        lastHeartbeatAt: string | null;
+      }>;
+    }>('agent-roster', {
+      companyId,
+      host: 'openclaw',
+      roster: [
+        { agentId: 'oc-2', displayName: 'Beta', role: 'qa', status: 'working' },
+        { id: 'oc-1', name: 'Alpha', role: 'pm', status: 'blocked' },
+      ],
+    });
+
+    expect(roster.companyId).toBe(companyId);
+    expect(roster.host).toBe('openclaw');
+    expect(roster.source).toBe('initial');
+    expect(roster.agents).toEqual([
+      { id: 'oc-1', name: 'Alpha', role: 'pm', status: 'error', lastHeartbeatAt: null },
+      { id: 'oc-2', name: 'Beta', role: 'qa', status: 'running', lastHeartbeatAt: null },
+    ]);
   });
 
   it('returns the builtin skin catalog for UI consumers', async () => {
@@ -97,11 +130,13 @@ describe('doro-office worker bridge', () => {
   it('refreshes the roster through action bridge', async () => {
     const roster = await harness.performAction<{
       companyId: string;
+      host: string;
       source: string;
       agents: Array<{ name: string }>;
     }>('refresh-agent-roster', { companyId });
 
     expect(roster.companyId).toBe(companyId);
+    expect(roster.host).toBe('paperclip');
     expect(roster.source).toBe('refresh');
     expect(roster.agents[1]?.name).toBe('Bravo');
   });
