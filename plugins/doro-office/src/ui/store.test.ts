@@ -1,5 +1,34 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { SkinCatalog } from '../shared/types';
 import { useOfficeStore } from './store';
+
+const skinCatalog: SkinCatalog = {
+  selectedSkin: 'night-shift',
+  skins: [
+    {
+      id: 'dororong',
+      name: '도로롱',
+      source: 'builtin',
+      manifestPath: null,
+      directoryPath: null,
+      stateAssets: {},
+      availableStates: ['idle', 'working', 'error', 'sleeping'],
+    },
+    {
+      id: 'night-shift',
+      name: 'Night Shift',
+      source: 'custom',
+      manifestPath: '/tmp/night-shift/skin.json',
+      directoryPath: '/tmp/night-shift',
+      stateAssets: {
+        idle: '/tmp/night-shift/idle.png',
+      },
+      availableStates: ['idle'],
+      description: 'Late-night dororong',
+    },
+  ],
+  warnings: ['night-shift is missing working state'],
+};
 
 describe('useOfficeStore', () => {
   beforeEach(() => {
@@ -16,6 +45,9 @@ describe('useOfficeStore', () => {
     expect(state.activeView).toBe('office');
     expect(state.showBubbles).toBe(true);
     expect(state.highlightIssues).toBe(true);
+    expect(state.selectedSkin).toBe('dororong');
+    expect(state.availableSkins).toEqual([]);
+    expect(state.skinWarnings).toEqual([]);
     expect(state.recentEvents).toEqual([]);
   });
 
@@ -72,6 +104,16 @@ describe('useOfficeStore', () => {
     expect(state.highlightIssues).toBe(false);
   });
 
+  it('stores skin catalog metadata and selected skin state', () => {
+    const store = useOfficeStore.getState();
+    store.replaceSkinCatalog(skinCatalog);
+
+    const state = useOfficeStore.getState();
+    expect(state.availableSkins).toEqual(skinCatalog.skins);
+    expect(state.selectedSkin).toBe('night-shift');
+    expect(state.skinWarnings).toEqual(['night-shift is missing working state']);
+  });
+
   it('resets roster and settings state back to defaults', () => {
     const store = useOfficeStore.getState();
     store.replaceRoster({
@@ -83,6 +125,7 @@ describe('useOfficeStore', () => {
     store.setActiveView('settings');
     store.toggleShowBubbles();
     store.toggleHighlightIssues();
+    store.replaceSkinCatalog(skinCatalog);
     store.reset();
 
     const state = useOfficeStore.getState();
@@ -94,6 +137,9 @@ describe('useOfficeStore', () => {
     expect(state.activeView).toBe('office');
     expect(state.showBubbles).toBe(true);
     expect(state.highlightIssues).toBe(true);
+    expect(state.selectedSkin).toBe('dororong');
+    expect(state.availableSkins).toEqual([]);
+    expect(state.skinWarnings).toEqual([]);
     expect(state.recentEvents).toEqual([]);
   });
 

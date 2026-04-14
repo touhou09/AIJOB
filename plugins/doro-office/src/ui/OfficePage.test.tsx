@@ -3,7 +3,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentRosterState, AgentSnapshot } from '../shared/types';
+import type { AgentRosterState, AgentSnapshot, SkinCatalog } from '../shared/types';
 import { useOfficeStore } from './store';
 
 const usePluginDataMock = vi.fn();
@@ -38,21 +38,64 @@ const refreshedRoster: AgentRosterState = {
   source: 'refresh',
 };
 
+const skinCatalog: SkinCatalog = {
+  selectedSkin: 'night-shift',
+  skins: [
+    {
+      id: 'dororong',
+      name: '도로롱',
+      source: 'builtin',
+      manifestPath: null,
+      directoryPath: null,
+      stateAssets: {},
+      availableStates: ['idle', 'working', 'error', 'sleeping'],
+    },
+    {
+      id: 'night-shift',
+      name: 'Night Shift',
+      source: 'custom',
+      manifestPath: '/Users/test/.hermes/skins/night-shift/skin.json',
+      directoryPath: '/Users/test/.hermes/skins/night-shift',
+      stateAssets: {
+        idle: '/Users/test/.hermes/skins/night-shift/idle.png',
+        error: '/Users/test/.hermes/skins/night-shift/error.png',
+      },
+      availableStates: ['idle', 'error'],
+      description: 'Late-night dororong',
+    },
+  ],
+  warnings: ['night-shift is missing working state'],
+};
+
 describe('OfficePageView', () => {
   let container: HTMLDivElement;
   let root: Root;
   let refreshAction: ReturnType<typeof vi.fn>;
+  let selectSkinAction: ReturnType<typeof vi.fn>;
 
   async function renderOfficePage(options?: {
     data?: AgentRosterState;
     loading?: boolean;
     error?: Error | null;
     mode?: 'page' | 'sidebar';
+    skinCatalog?: SkinCatalog;
+    skinLoading?: boolean;
+    skinError?: Error | null;
   }) {
-    usePluginDataMock.mockReturnValue({
-      data: options?.data ?? roster,
-      error: options?.error ?? null,
-      loading: options?.loading ?? false,
+    usePluginDataMock.mockImplementation((key: string) => {
+      if (key === 'office-skins') {
+        return {
+          data: options?.skinCatalog ?? skinCatalog,
+          error: options?.skinError ?? null,
+          loading: options?.skinLoading ?? false,
+        };
+      }
+
+      return {
+        data: options?.data ?? roster,
+        error: options?.error ?? null,
+        loading: options?.loading ?? false,
+      };
     });
 
     const { OfficePageView } = await import('./OfficePage');
@@ -72,7 +115,16 @@ describe('OfficePageView', () => {
     useOfficeStore.getState().reset();
 
     refreshAction = vi.fn().mockResolvedValue(refreshedRoster);
-    usePluginActionMock.mockReturnValue(refreshAction);
+    selectSkinAction = vi.fn().mockResolvedValue({
+      ...skinCatalog,
+      selectedSkin: 'dororong',
+    });
+    usePluginActionMock.mockImplementation((key: string) => {
+      if (key === 'select-office-skin') {
+        return selectSkinAction;
+      }
+      return refreshAction;
+    });
 
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -89,7 +141,7 @@ describe('OfficePageView', () => {
     vi.useRealTimers();
   });
 
-  it('renders office seats, overflow roster, and timeline on the page view', async () => {
+  it('renders office seats, overflow roster, timeline, and selected skin characters on the page view', async () => {
     await renderOfficePage();
 
     expect(container.textContent).toContain('오피스 레이아웃');
@@ -100,9 +152,13 @@ describe('OfficePageView', () => {
     expect(container.textContent).toContain('Agent 8');
     expect(container.textContent).toContain('최근 이벤트 timeline');
     expect(container.querySelectorAll('article[aria-label$="좌석 카드"]').length).toBe(7);
+
+    const selectedCharacter = container.querySelector('img[alt="Agent 1 Night Shift 캐릭터 (idle)"]');
+    expect(selectedCharacter).toBeTruthy();
+    expect(selectedCharacter?.getAttribute('src')).toBe('/Users/test/.hermes/skins/night-shift/idle.png');
   });
 
-  it('switches to settings view and toggles display options', async () => {
+  it('switches to settings view, toggles display options, and persists selected skin changes', async () => {
     await renderOfficePage();
 
     const settingsTab = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('표시 옵션'));
@@ -117,20 +173,30 @@ describe('OfficePageView', () => {
     expect(container.textContent).toContain('말풍선 표시');
     expect(container.textContent).toContain('오류 상태 강조');
     expect(container.textContent).toContain('자동 갱신');
+    expect(container.textContent).toContain('스킨 선택');
+    expect(container.textContent).toContain('~/.hermes/skins');
+    expect(container.textContent).toContain('Night Shift');
 
     const bubbleToggle = container.querySelector('button[aria-label="말풍선 표시"]');
     const highlightToggle = container.querySelector('button[aria-label="오류 상태 강조"]');
+    const customSkinButton = container.querySelector('button[aria-label="Night Shift 스킨 선택"]');
+    const builtinSkinButton = container.querySelector('button[aria-label="도로롱 스킨 선택"]');
     expect(bubbleToggle?.getAttribute('aria-pressed')).toBe('true');
     expect(highlightToggle?.getAttribute('aria-pressed')).toBe('true');
+    expect(customSkinButton?.getAttribute('aria-pressed')).toBe('true');
 
     await act(async () => {
       bubbleToggle?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       highlightToggle?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      builtinSkinButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
       await Promise.resolve();
     });
 
+    expect(selectSkinAction).toHaveBeenCalledWith({ selectedSkin: 'dororong' });
     expect(bubbleToggle?.getAttribute('aria-pressed')).toBe('false');
     expect(highlightToggle?.getAttribute('aria-pressed')).toBe('false');
+    expect(builtinSkinButton?.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('renders loading and error states for the office flow', async () => {
@@ -159,11 +225,29 @@ describe('OfficePageView', () => {
     expect(container.textContent).toContain('network failed');
   });
 
+  it('shows skin catalog errors inside settings without replacing the roster error view', async () => {
+    await renderOfficePage({ skinError: new Error('skin catalog failed') });
+
+    const settingsTab = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('표시 옵션'));
+    expect(settingsTab).toBeTruthy();
+
+    await act(async () => {
+      settingsTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('스킨 선택 오류');
+    expect(container.textContent).toContain('skin catalog failed');
+    expect(container.textContent).not.toContain('에이전트 로스터를 불러오지 못했습니다.');
+  });
+
   it('refreshes the roster every second without subscribing to a stream bridge', async () => {
     await renderOfficePage();
 
     expect(usePluginDataMock).toHaveBeenCalledWith('agent-roster', { companyId: 'company-1' });
+    expect(usePluginDataMock).toHaveBeenCalledWith('office-skins', {});
     expect(usePluginActionMock).toHaveBeenCalledWith('refresh-agent-roster');
+    expect(usePluginActionMock).toHaveBeenCalledWith('select-office-skin');
     expect(refreshAction).not.toHaveBeenCalled();
     expect(container.textContent).toContain('Agent 1');
 
