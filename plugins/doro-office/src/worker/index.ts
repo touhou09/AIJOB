@@ -1,13 +1,18 @@
 import { definePlugin, runWorker } from '@paperclipai/plugin-sdk';
 import type { PluginContext } from '@paperclipai/plugin-sdk';
 import type { AgentRosterPoller } from './poller';
-import type { AgentRosterState } from '../shared/types';
+import type { AgentRosterState, SelectOfficeSkinParams, SkinCatalog } from '../shared/types';
 import { createPaperclipAgentsClient } from './paperclip-client';
 import { createAgentRosterPoller } from './poller';
 import { loadAvailableSkins } from './skin-loader';
 
 const POLL_INTERVAL_MS = 1_000;
 const STREAM_CHANNEL_PREFIX = 'agents:';
+const OFFICE_SKINS_STATE_SCOPE = {
+  scopeKind: 'instance' as const,
+  namespace: 'office-skins',
+  stateKey: 'selected-skin',
+};
 
 type CompanyWatcher = {
   poller: AgentRosterPoller;
@@ -29,6 +34,23 @@ function getMissingCompanyPayload(): AgentRosterState {
     source: 'initial',
     error: 'companyId is required',
   };
+}
+
+function getRequestedSkinId(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+async function getSkinCatalog(ctx: PluginContext, selectedSkin?: string | null): Promise<SkinCatalog> {
+  const requestedSkin = selectedSkin ?? getRequestedSkinId(await ctx.state.get(OFFICE_SKINS_STATE_SCOPE));
+  const skinCatalog = await loadAvailableSkins({ selectedSkin: requestedSkin });
+
+  for (const warning of skinCatalog.warnings) {
+    ctx.logger.info('doro-office skipped custom skin manifest', {
+      warning,
+    });
+  }
+
+  return skinCatalog;
 }
 
 function ensureCompanyWatcher(ctx: PluginContext, companyId: string) {
@@ -87,12 +109,17 @@ const plugin = definePlugin({
     });
 
     ctx.data.register('office-skins', async () => {
-      const skinCatalog = await loadAvailableSkins();
-      for (const warning of skinCatalog.warnings) {
-        ctx.logger.info('doro-office skipped custom skin manifest', {
-          warning,
-        });
+      return getSkinCatalog(ctx);
+    });
+
+    ctx.actions.register('select-office-skin', async (params) => {
+      const selectedSkin = getRequestedSkinId((params as SelectOfficeSkinParams).selectedSkin);
+      if (!selectedSkin) {
+        throw new Error('selectedSkin is required');
       }
+
+      const skinCatalog = await getSkinCatalog(ctx, selectedSkin);
+      await ctx.state.set(OFFICE_SKINS_STATE_SCOPE, skinCatalog.selectedSkin);
       return skinCatalog;
     });
 

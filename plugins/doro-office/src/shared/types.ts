@@ -50,6 +50,10 @@ export type SkinCatalog = {
   warnings: string[];
 };
 
+export type SelectOfficeSkinParams = {
+  selectedSkin: string;
+};
+
 export type AgentRosterPayload = {
   companyId: string;
   agents: AgentSnapshot[];

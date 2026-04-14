@@ -34,11 +34,20 @@ type SkinManifest = {
 type LoadAvailableSkinsOptions = {
   homeDir?: string;
   rootDir?: string;
+  selectedSkin?: string | null;
   readdirFn?: ReadDirFn;
   readFileFn?: ReadFileFn;
   realpathFn?: RealpathFn;
   statFn?: StatFn;
 };
+
+function resolveSelectedSkin(skins: SkinMetadata[], selectedSkin?: string | null) {
+  if (!isNonEmptyString(selectedSkin)) {
+    return BUILTIN_SKIN_ID;
+  }
+
+  return skins.some((skin) => skin.id === selectedSkin) ? selectedSkin : BUILTIN_SKIN_ID;
+}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
@@ -185,7 +194,7 @@ export async function loadAvailableSkins(options: LoadAvailableSkinsOptions = {}
   }
 
   return {
-    selectedSkin: BUILTIN_SKIN_ID,
+    selectedSkin: resolveSelectedSkin(skins, options.selectedSkin),
     skins,
     warnings,
   };

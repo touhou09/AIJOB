@@ -2,8 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestHarness } from '@paperclipai/plugin-sdk/testing';
 import plugin from './index';
 import manifest from '../manifest';
+import * as skinLoader from './skin-loader';
 
 const companyId = 'company-1';
+const OFFICE_SKIN_SCOPE = {
+  scopeKind: 'instance' as const,
+  namespace: 'office-skins',
+  stateKey: 'selected-skin',
+};
 
 type AgentStatus = 'idle' | 'active' | 'paused' | 'running' | 'error' | 'pending_approval' | 'terminated';
 
@@ -92,6 +98,46 @@ describe('doro-office worker bridge', () => {
       }),
     );
     expect(Array.isArray(skinCatalog.warnings)).toBe(true);
+  });
+
+  it('persists selectedSkin through the worker action/data contract', async () => {
+    vi.spyOn(skinLoader, 'loadAvailableSkins').mockImplementation(async (options = {}) => ({
+      selectedSkin: options.selectedSkin === 'night-shift' ? 'night-shift' : 'dororong',
+      skins: [
+        {
+          id: 'dororong',
+          name: '도로롱',
+          source: 'builtin',
+          manifestPath: null,
+          directoryPath: null,
+          stateAssets: {},
+          availableStates: ['idle'],
+        },
+        {
+          id: 'night-shift',
+          name: 'Night Shift',
+          source: 'custom',
+          manifestPath: '/tmp/night-shift/skin.json',
+          directoryPath: '/tmp/night-shift',
+          stateAssets: {},
+          availableStates: ['idle'],
+        },
+      ],
+      warnings: [],
+    }));
+
+    const updatedCatalog = await harness.performAction<{
+      selectedSkin: string;
+    }>('select-office-skin', { selectedSkin: 'night-shift' });
+
+    expect(updatedCatalog.selectedSkin).toBe('night-shift');
+    expect(harness.getState(OFFICE_SKIN_SCOPE)).toBe('night-shift');
+
+    const reloadedCatalog = await harness.getData<{
+      selectedSkin: string;
+    }>('office-skins', {});
+
+    expect(reloadedCatalog.selectedSkin).toBe('night-shift');
   });
 
   it('refreshes the roster through action bridge', async () => {
