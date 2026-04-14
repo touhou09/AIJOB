@@ -1,6 +1,5 @@
-import type { Agent } from '@paperclipai/plugin-sdk';
-import type { AgentRosterPayload, AgentRosterSource, AgentRosterState, AgentSnapshot } from '../shared/types';
-import type { PaperclipAgentsClient } from './paperclip-client';
+import type { AgentRosterClient } from './paperclip-client';
+import type { AgentRosterHost, AgentRosterPayload, AgentRosterSource, AgentRosterState, AgentSnapshot } from '../shared/types';
 
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
 
@@ -10,7 +9,7 @@ type PollerTimer = ReturnType<typeof setInterval>;
 
 type PollerOptions = {
   companyId: string;
-  client: PaperclipAgentsClient;
+  client: AgentRosterClient;
   onUpdate: UpdateCallback;
   intervalMs?: number;
   now?: () => Date;
@@ -25,41 +24,20 @@ export type AgentRosterPoller = {
   getLastPayload: () => AgentRosterState | null;
 };
 
-function toIsoString(value: Date | string | null) {
-  if (!value) {
-    return null;
-  }
-
-  if (typeof value === 'string') {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
-  }
-
-  return value.toISOString();
-}
-
-function toAgentSnapshot(agent: Agent): AgentSnapshot {
-  return {
-    id: agent.id,
-    name: agent.name,
-    role: agent.role,
-    status: agent.status,
-    lastHeartbeatAt: toIsoString(agent.lastHeartbeatAt),
-  };
-}
-
-function buildPayload(companyId: string, agents: Agent[], source: AgentRosterSource, now: () => Date): AgentRosterPayload {
+function buildPayload(companyId: string, host: AgentRosterHost, agents: AgentSnapshot[], source: AgentRosterSource, now: () => Date): AgentRosterPayload {
   return {
     companyId,
-    agents: agents.map(toAgentSnapshot).sort((left, right) => left.name.localeCompare(right.name)),
+    host,
+    agents: [...agents].sort((left, right) => left.name.localeCompare(right.name)),
     fetchedAt: now().toISOString(),
     source,
   };
 }
 
-function buildErrorPayload(companyId: string, source: AgentRosterSource, now: () => Date, error: unknown): AgentRosterState {
+function buildErrorPayload(companyId: string, host: AgentRosterHost, source: AgentRosterSource, now: () => Date, error: unknown): AgentRosterState {
   return {
     companyId,
+    host,
     agents: [],
     fetchedAt: now().toISOString(),
     source,
@@ -69,6 +47,10 @@ function buildErrorPayload(companyId: string, source: AgentRosterSource, now: ()
 
 function hasRosterChanged(previous: AgentRosterState | null, next: AgentRosterState) {
   if (!previous) {
+    return true;
+  }
+
+  if (previous.host !== next.host) {
     return true;
   }
 
@@ -108,7 +90,7 @@ export function createAgentRosterPoller(options: PollerOptions): AgentRosterPoll
   const sync = async (source: AgentRosterSource) => {
     try {
       const agents = await options.client.listAgents(options.companyId);
-      const nextPayload = buildPayload(options.companyId, agents, source, now);
+      const nextPayload = buildPayload(options.companyId, options.client.host, agents, source, now);
       if (hasRosterChanged(lastPayload, nextPayload)) {
         lastPayload = nextPayload;
         options.onUpdate(nextPayload);
@@ -118,7 +100,7 @@ export function createAgentRosterPoller(options: PollerOptions): AgentRosterPoll
 
       return nextPayload;
     } catch (error) {
-      const errorPayload = buildErrorPayload(options.companyId, source, now, error);
+      const errorPayload = buildErrorPayload(options.companyId, options.client.host, source, now, error);
       if (hasRosterChanged(lastPayload, errorPayload)) {
         lastPayload = errorPayload;
         options.onUpdate(errorPayload);

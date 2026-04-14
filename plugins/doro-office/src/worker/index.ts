@@ -3,6 +3,7 @@ import type { PluginContext } from '@paperclipai/plugin-sdk';
 import type { AgentRosterPoller } from './poller';
 import type { AgentRosterState } from '../shared/types';
 import { createPaperclipAgentsClient } from './paperclip-client';
+import { createOpenClawRosterClient } from './openclaw-client';
 import { createAgentRosterPoller } from './poller';
 import { loadAvailableSkins } from './skin-loader';
 
@@ -21,14 +22,37 @@ function getStreamChannel(companyId: string) {
   return `${STREAM_CHANNEL_PREFIX}${companyId}`;
 }
 
-function getMissingCompanyPayload(): AgentRosterState {
+function getMissingCompanyPayload(host: 'paperclip' | 'openclaw' = 'paperclip'): AgentRosterState {
   return {
     companyId: '',
+    host,
     agents: [],
     fetchedAt: new Date().toISOString(),
     source: 'initial',
     error: 'companyId is required',
   };
+}
+
+function isOpenClawParams(params: unknown): params is {
+  companyId?: string;
+  host: 'openclaw';
+  roster?: unknown;
+} {
+  return typeof params === 'object' && params !== null && (params as { host?: unknown }).host === 'openclaw';
+}
+
+function buildOpenClawPayload(companyId: string, source: 'initial' | 'refresh', roster: unknown) {
+  const client = createOpenClawRosterClient({
+    loadRoster: async () => (roster ?? []),
+  });
+
+  return client.listAgents(companyId).then((agents) => ({
+    companyId,
+    host: client.host,
+    agents: [...agents].sort((left, right) => left.name.localeCompare(right.name)),
+    fetchedAt: new Date().toISOString(),
+    source,
+  }));
 }
 
 function ensureCompanyWatcher(ctx: PluginContext, companyId: string) {
@@ -74,7 +98,11 @@ const plugin = definePlugin({
       const companyId = typeof params.companyId === 'string' ? params.companyId : null;
 
       if (!companyId) {
-        return getMissingCompanyPayload();
+        return getMissingCompanyPayload(isOpenClawParams(params) ? 'openclaw' : 'paperclip');
+      }
+
+      if (isOpenClawParams(params)) {
+        return buildOpenClawPayload(companyId, 'initial', params.roster);
       }
 
       const watcher = ensureCompanyWatcher(ctx, companyId);
@@ -101,6 +129,10 @@ const plugin = definePlugin({
 
       if (!companyId) {
         throw new Error('companyId is required');
+      }
+
+      if (isOpenClawParams(params)) {
+        return buildOpenClawPayload(companyId, 'refresh', params.roster);
       }
 
       const watcher = ensureCompanyWatcher(ctx, companyId);
