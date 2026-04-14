@@ -16,46 +16,26 @@ Paperclip 안에서 Hermes 에이전트 상태를 오피스 레이아웃, 최근
    - `npm run build`
 3. board token 로드
    ```sh
-   export PAPERCLIP_TOKEN="$(python3 - <<'PY'
-import json
-import os
-
-with open(os.path.expanduser('~/.paperclip/auth.json')) as f:
-    data = json.load(f)
-
-for base in ('http://localhost:3101', 'http://localhost:3100', 'https://paperclip.dororong.dev'):
-    info = data.get('credentials', {}).get(base)
-    if info and info.get('token'):
-        print(info['token'])
-        raise SystemExit
-
-for info in data.get('credentials', {}).values():
-    if info.get('token'):
-        print(info['token'])
-        raise SystemExit
-
-raise SystemExit('Paperclip token not found in ~/.paperclip/auth.json')
-PY
-   )"
+   export PAPERCLIP_TOKEN="<~/.paperclip/auth.json 에서 읽은 token>"
    ```
 4. 기존 플러그인 제거 후 현재 디렉터리를 로컬 경로로 재설치
    ```sh
    curl -s -X DELETE "http://localhost:3101/api/plugins/dororong.doro-office?purge=true" \
-     -H "Authorization: Bearer ${PAPERCLIP_TOKEN}"
+     -H "Authorization: Bearer <paperclip-token>"
 
    curl -s -X POST "http://localhost:3101/api/plugins/install" \
-     -H "Authorization: Bearer ${PAPERCLIP_TOKEN}" \
+     -H "Authorization: Bearer <paperclip-token>" \
      -H "Content-Type: application/json" \
      -d "{\"packageName\":\"$(pwd)\",\"isLocalPath\":true}"
    ```
 5. 설치 결과 확인
    ```sh
-   curl -s -H "Authorization: Bearer ${PAPERCLIP_TOKEN}" "http://localhost:3101/api/plugins" \
+   curl -s -H "Authorization: Bearer <paperclip-token>" "http://localhost:3101/api/plugins" \
      | python3 -c 'import json,sys; plugins=json.load(sys.stdin); rows=[{"pluginKey":p["pluginKey"],"status":p["status"],"packageVersion":p["version"],"manifestVersion":p["manifestJson"]["version"],"manifestDescription":p["manifestJson"]["description"]} for p in plugins if p["pluginKey"]=="dororong.doro-office"]; print(json.dumps(rows, ensure_ascii=False, indent=2))'
    ```
 6. UI contribution 확인
    ```sh
-   curl -s -H "Authorization: Bearer ${PAPERCLIP_TOKEN}" "http://localhost:3101/api/plugins/ui-contributions" \
+   curl -s -H "Authorization: Bearer <paperclip-token>" "http://localhost:3101/api/plugins/ui-contributions" \
      | python3 -c 'import json,sys; rows=[c for c in json.load(sys.stdin) if c["pluginKey"]=="dororong.doro-office"]; print(json.dumps(rows, ensure_ascii=False, indent=2))'
    ```
 7. Paperclip UI에서 회사 컨텍스트를 연 뒤 사이드바의 `Doro Office` 진입점을 확인합니다.

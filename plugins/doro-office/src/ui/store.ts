@@ -82,7 +82,10 @@ export const useOfficeStore = create<OfficeStoreState>((set) => ({
     set({ loading });
   },
   setError: (error) => {
-    set({ error, loading: false });
+    set((state) => ({
+      error,
+      loading: error ? false : state.loading,
+    }));
   },
   replaceRoster: (payload) => {
     set((state) => ({
@@ -112,6 +115,11 @@ export const useOfficeStore = create<OfficeStoreState>((set) => ({
     set((state) => ({ highlightIssues: !state.highlightIssues }));
   },
   reset: () => {
-    set(initialState);
+    set((state) => ({
+      ...initialState,
+      selectedSkin: state.selectedSkin,
+      availableSkins: state.availableSkins,
+      skinWarnings: state.skinWarnings,
+    }));
   },
 }));

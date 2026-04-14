@@ -114,7 +114,7 @@ describe('useOfficeStore', () => {
     expect(state.skinWarnings).toEqual(['night-shift is missing working state']);
   });
 
-  it('resets roster and settings state back to defaults', () => {
+  it('resets roster and view state while preserving loaded skin selection metadata', () => {
     const store = useOfficeStore.getState();
     store.replaceRoster({
       companyId: 'company-1',
@@ -137,10 +137,21 @@ describe('useOfficeStore', () => {
     expect(state.activeView).toBe('office');
     expect(state.showBubbles).toBe(true);
     expect(state.highlightIssues).toBe(true);
-    expect(state.selectedSkin).toBe('dororong');
-    expect(state.availableSkins).toEqual([]);
-    expect(state.skinWarnings).toEqual([]);
+    expect(state.selectedSkin).toBe('night-shift');
+    expect(state.availableSkins).toEqual(skinCatalog.skins);
+    expect(state.skinWarnings).toEqual(['night-shift is missing working state']);
     expect(state.recentEvents).toEqual([]);
+  });
+
+  it('clears an error without overriding the current loading state', () => {
+    const store = useOfficeStore.getState();
+    store.setError('network');
+    store.setLoading(true);
+    store.setError(null);
+
+    const state = useOfficeStore.getState();
+    expect(state.error).toBeNull();
+    expect(state.loading).toBe(true);
   });
 
   it('sets an error and stops loading', () => {
