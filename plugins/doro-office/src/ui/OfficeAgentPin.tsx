@@ -1,10 +1,12 @@
-import type { AgentSnapshot } from '../shared/types';
+import type { AgentSnapshot, DororongVisualState, SkinMetadata } from '../shared/types';
+import { Character } from './Character';
 
 type OfficeAgentPinProps = {
   agent: AgentSnapshot;
   seatLabel: string;
   showSpeechBubble: boolean;
   emphasizeIssue: boolean;
+  selectedSkin: SkinMetadata | null;
 };
 
 function toVisualTone(status: AgentSnapshot['status']) {
@@ -44,6 +46,21 @@ function toVisualTone(status: AgentSnapshot['status']) {
   }
 }
 
+function toVisualState(status: AgentSnapshot['status']): DororongVisualState {
+  switch (status) {
+    case 'active':
+    case 'running':
+      return 'working';
+    case 'error':
+      return 'error';
+    case 'paused':
+    case 'terminated':
+      return 'sleeping';
+    default:
+      return 'idle';
+  }
+}
+
 function toInitials(name: string) {
   return name
     .split(/[-\s]+/)
@@ -53,9 +70,11 @@ function toInitials(name: string) {
     .join('');
 }
 
-export function OfficeAgentPin({ agent, seatLabel, showSpeechBubble, emphasizeIssue }: OfficeAgentPinProps) {
+export function OfficeAgentPin({ agent, seatLabel, showSpeechBubble, emphasizeIssue, selectedSkin }: OfficeAgentPinProps) {
   const tone = toVisualTone(agent.status);
   const shouldHighlight = emphasizeIssue && agent.status === 'error';
+  const initials = toInitials(agent.name);
+  const visualState = toVisualState(agent.status);
 
   return (
     <article
@@ -66,8 +85,8 @@ export function OfficeAgentPin({ agent, seatLabel, showSpeechBubble, emphasizeIs
     >
       <p className="do:text-[11px] do:font-semibold do:uppercase do:tracking-[0.18em] do:text-orange-500">{seatLabel}</p>
       <div className="do:mt-2 do:flex do:items-center do:gap-3">
-        <div className="do:flex do:size-12 do:items-center do:justify-center do:rounded-full do:bg-orange-50 do:text-sm do:font-bold do:text-orange-700">
-          {toInitials(agent.name)}
+        <div className="do:w-20 do:shrink-0">
+          <Character name={agent.name} selectedSkin={selectedSkin} state={visualState} />
         </div>
         <div className="do:min-w-0 do:flex-1">
           <h3 className="do:truncate do:text-sm do:font-semibold do:text-slate-950">{agent.name}</h3>
@@ -83,7 +102,7 @@ export function OfficeAgentPin({ agent, seatLabel, showSpeechBubble, emphasizeIs
 
       <div className="do:mt-3 do:flex do:items-center do:justify-between do:gap-2">
         <span className={`do:rounded-full do:px-2.5 do:py-1 do:text-[11px] do:font-semibold ${tone.chip}`}>{agent.status.replace(/_/g, ' ')}</span>
-        <span className="do:text-[11px] do:text-slate-500">{toInitials(agent.name)}</span>
+        <span className="do:text-[11px] do:text-slate-500">{initials}</span>
       </div>
     </article>
   );

@@ -16,52 +16,33 @@ Paperclip 안에서 Hermes 에이전트 상태를 오피스 레이아웃, 최근
    - `npm run build`
 3. board token 로드
    ```sh
-   export PAPERCLIP_TOKEN="$(python3 - <<'PY'
-import json
-import os
-
-with open(os.path.expanduser('~/.paperclip/auth.json')) as f:
-    data = json.load(f)
-
-for base in ('http://localhost:3101', 'http://localhost:3100', 'https://paperclip.dororong.dev'):
-    info = data.get('credentials', {}).get(base)
-    if info and info.get('token'):
-        print(info['token'])
-        raise SystemExit
-
-for info in data.get('credentials', {}).values():
-    if info.get('token'):
-        print(info['token'])
-        raise SystemExit
-
-raise SystemExit('Paperclip token not found in ~/.paperclip/auth.json')
-PY
-   )"
+   export PAPERCLIP_TOKEN="<~/.paperclip/auth.json 에서 읽은 token>"
    ```
 4. 기존 플러그인 제거 후 현재 디렉터리를 로컬 경로로 재설치
    ```sh
    curl -s -X DELETE "http://localhost:3101/api/plugins/dororong.doro-office?purge=true" \
-     -H "Authorization: Bearer ${PAPERCLIP_TOKEN}"
+     -H "Authorization: Bearer <paperclip-token>"
 
    curl -s -X POST "http://localhost:3101/api/plugins/install" \
-     -H "Authorization: Bearer ${PAPERCLIP_TOKEN}" \
+     -H "Authorization: Bearer <paperclip-token>" \
      -H "Content-Type: application/json" \
      -d "{\"packageName\":\"$(pwd)\",\"isLocalPath\":true}"
    ```
 5. 설치 결과 확인
    ```sh
-   curl -s -H "Authorization: Bearer ${PAPERCLIP_TOKEN}" "http://localhost:3101/api/plugins" \
+   curl -s -H "Authorization: Bearer <paperclip-token>" "http://localhost:3101/api/plugins" \
      | python3 -c 'import json,sys; plugins=json.load(sys.stdin); rows=[{"pluginKey":p["pluginKey"],"status":p["status"],"packageVersion":p["version"],"manifestVersion":p["manifestJson"]["version"],"manifestDescription":p["manifestJson"]["description"]} for p in plugins if p["pluginKey"]=="dororong.doro-office"]; print(json.dumps(rows, ensure_ascii=False, indent=2))'
    ```
 6. UI contribution 확인
    ```sh
-   curl -s -H "Authorization: Bearer ${PAPERCLIP_TOKEN}" "http://localhost:3101/api/plugins/ui-contributions" \
+   curl -s -H "Authorization: Bearer <paperclip-token>" "http://localhost:3101/api/plugins/ui-contributions" \
      | python3 -c 'import json,sys; rows=[c for c in json.load(sys.stdin) if c["pluginKey"]=="dororong.doro-office"]; print(json.dumps(rows, ensure_ascii=False, indent=2))'
    ```
 7. Paperclip UI에서 회사 컨텍스트를 연 뒤 사이드바의 `Doro Office` 진입점을 확인합니다.
 8. `/office` 페이지에서 오피스 배경 위 7개 좌석 카드가 지정 좌표로 배치되는지 확인합니다.
-9. `표시 옵션` 탭에서 말풍선 표시와 오류 상태 강조 토글이 동작하는지 확인합니다.
-10. 에이전트 상태를 바꾸거나 heartbeat를 발생시킨 뒤 1초 이내에 좌석 카드와 widget 요약이 갱신되는지 확인합니다.
+9. `표시 옵션` 탭에서 말풍선 표시와 오류 상태 강조 토글, `selectedSkin` 선택 버튼이 동작하는지 확인합니다.
+10. `~/.hermes/skins/<skin-id>/skin.json`에 추가한 커스텀 스킨이 `스킨 선택` 섹션에 노출되고, 선택 즉시 오피스 캐릭터 렌더링에 반영되는지 확인합니다.
+11. 에이전트 상태를 바꾸거나 heartbeat를 발생시킨 뒤 1초 이내에 좌석 카드와 widget 요약이 갱신되는지 확인합니다.
 
 ## 현재 포함 범위
 
@@ -72,6 +53,8 @@ PY
 - Worker의 `/api/companies/{id}/agents` 1초 폴링 + refresh action
 - SVG 오피스 배경과 7개 좌석 고정 좌표 배치
 - `표시 옵션` 탭의 말풍선 / 오류 강조 토글
+- `selectedSkin` 상태와 `~/.hermes/skins` 기반 커스텀 스킨 선택 UI
+- 선택한 스킨의 상태별 에셋을 사용하는 오피스 캐릭터 렌더링
 - overflow roster fallback 카드 리스트
 - 최근 이벤트 timeline
 - 수동 새로고침과 기본 로딩/오류/빈 상태 UI
@@ -87,8 +70,9 @@ PY
 1. 오피스 뷰는 `OFFICE_SEATS` 7개 좌석에 에이전트를 순서대로 배치합니다.
 2. 좌석 수를 초과한 에이전트는 오른쪽 `overflow roster` 카드 리스트로 안전하게 노출합니다.
 3. `표시 옵션` 탭에서는 말풍선 표시와 오류 상태 강조를 켜고 끌 수 있습니다.
-4. 사이드바는 빠른 요약을 위해 카드 리스트만 렌더링하고, 상세 레이아웃은 페이지 뷰에서 제공합니다.
-5. dashboard widget은 working/error/idle 집계와 7개 미니 avatar를 같은 roster payload로 보여 줍니다.
+4. 같은 탭의 `스킨 선택` 섹션에서 기본 도로롱 또는 `~/.hermes/skins`에 추가한 커스텀 스킨을 선택할 수 있습니다.
+5. 사이드바는 빠른 요약을 위해 카드 리스트만 렌더링하고, 상세 레이아웃과 스킨 선택 결과는 페이지 뷰에서 제공합니다.
+6. dashboard widget은 working/error/idle 집계와 7개 미니 avatar를 같은 roster payload로 보여 줍니다.
 
 ## 상태 표시 규칙
 

@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PluginHostContext } from '@paperclipai/plugin-sdk/ui';
-import type { AgentSnapshot } from '../shared/types';
+import { usePluginAction, usePluginData } from '@paperclipai/plugin-sdk/ui';
+import type { AgentSnapshot, SelectOfficeSkinParams, SkinCatalog, SkinMetadata } from '../shared/types';
 import { AgentCard } from './AgentCard';
 import { OfficeAgentPin } from './OfficeAgentPin';
 import { OFFICE_SEATS } from './office-layout';
@@ -25,9 +26,16 @@ function toTimelineLabel(status: AgentSnapshot['status']) {
   return status.replace(/_/g, ' ');
 }
 
+function getSelectedSkinMetadata(availableSkins: SkinMetadata[], selectedSkin: string) {
+  return availableSkins.find((skin) => skin.id === selectedSkin) ?? null;
+}
+
 export function OfficePageView({ context, mode }: OfficePageViewProps) {
   const companyId = context.companyId;
   const { roster, loading, error, refresh } = useAutoRefreshingRoster(companyId);
+  const skinCatalogQuery = usePluginData<SkinCatalog>('office-skins', {});
+  const selectOfficeSkin = usePluginAction('select-office-skin');
+  const [skinRequestError, setSkinRequestError] = useState<string | null>(null);
 
   const {
     agents,
@@ -37,8 +45,12 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
     activeView,
     showBubbles,
     highlightIssues,
+    selectedSkin,
+    availableSkins,
+    skinWarnings,
     recentEvents,
     replaceRoster,
+    replaceSkinCatalog,
     setError,
     setLoading,
     setActiveView,
@@ -62,6 +74,12 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
   }, [replaceRoster, roster]);
 
   useEffect(() => {
+    if (skinCatalogQuery.data) {
+      replaceSkinCatalog(skinCatalogQuery.data);
+    }
+  }, [replaceSkinCatalog, skinCatalogQuery.data]);
+
+  useEffect(() => {
     setError(error);
   }, [error, setError]);
 
@@ -69,9 +87,21 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
     await refresh();
   };
 
+  const handleSelectSkin = async (nextSkin: string) => {
+    try {
+      const updatedCatalog = (await selectOfficeSkin({ selectedSkin: nextSkin } satisfies SelectOfficeSkinParams)) as SkinCatalog;
+      replaceSkinCatalog(updatedCatalog);
+      setSkinRequestError(null);
+    } catch (selectionError) {
+      setSkinRequestError(selectionError instanceof Error ? selectionError.message : '스킨을 변경하지 못했습니다.');
+    }
+  };
+
   const effectiveCompanyId = storeCompanyId ?? companyId;
   const isEmpty = !loading && !error && agents.length === 0;
   const { pinnedAgents, overflowAgents } = useMemo(() => splitAgentsForOffice(agents), [agents]);
+  const selectedSkinMetadata = useMemo(() => getSelectedSkinMetadata(availableSkins, selectedSkin), [availableSkins, selectedSkin]);
+  const skinErrorMessage = skinRequestError ?? (skinCatalogQuery.error instanceof Error ? skinCatalogQuery.error.message : null);
 
   if (mode === 'sidebar') {
     const visibleAgents = agents.slice(0, 4);
@@ -117,7 +147,7 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
   const pageDescription =
     activeView === 'office'
       ? `오피스 배경 위 지정 좌표 7석에 에이전트를 배치하고 ${AUTO_REFRESH_INTERVAL_MS / 1_000}초 단위 diff polling으로 갱신합니다.`
-      : '말풍선과 오류 강조, timeline 밀도를 조정하는 표시 옵션 설정 패널입니다.';
+      : '말풍선·오류 강조·selectedSkin 선택을 조절하는 표시 옵션 설정 패널입니다.';
 
   return (
     <section className="do:flex do:h-full do:flex-col do:gap-4 do:rounded-3xl do:border do:border-orange-200 do:bg-orange-50/40 do:p-4 do:text-slate-900 md:do:p-6">
@@ -172,6 +202,7 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
           pinnedAgents={pinnedAgents}
           overflowAgents={overflowAgents}
           recentEvents={recentEvents}
+          selectedSkin={selectedSkinMetadata}
           showBubbles={showBubbles}
           highlightIssues={highlightIssues}
         />
@@ -182,6 +213,12 @@ export function OfficePageView({ context, mode }: OfficePageViewProps) {
           showBubbles={showBubbles}
           highlightIssues={highlightIssues}
           overflowCount={overflowAgents.length}
+          selectedSkin={selectedSkin}
+          availableSkins={availableSkins}
+          skinWarnings={skinWarnings}
+          skinLoading={skinCatalogQuery.loading}
+          skinError={skinErrorMessage}
+          onSelectSkin={handleSelectSkin}
           onToggleShowBubbles={toggleShowBubbles}
           onToggleHighlightIssues={toggleHighlightIssues}
         />
@@ -227,11 +264,12 @@ type OfficeLayoutSectionProps = {
   pinnedAgents: AgentSnapshot[];
   overflowAgents: AgentSnapshot[];
   recentEvents: ReturnType<typeof useOfficeStore.getState>['recentEvents'];
+  selectedSkin: SkinMetadata | null;
   showBubbles: boolean;
   highlightIssues: boolean;
 };
 
-function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showBubbles, highlightIssues }: OfficeLayoutSectionProps) {
+function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, selectedSkin, showBubbles, highlightIssues }: OfficeLayoutSectionProps) {
   return (
     <div className="do:grid do:gap-4 xl:do:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)]">
       <section className="do:overflow-hidden do:rounded-[2rem] do:border do:border-orange-200 do:bg-white do:p-4 do:shadow-sm">
@@ -255,6 +293,7 @@ function OfficeLayoutSection({ pinnedAgents, overflowAgents, recentEvents, showB
                     agent={agent}
                     emphasizeIssue={highlightIssues}
                     seatLabel={seat.label}
+                    selectedSkin={selectedSkin}
                     showSpeechBubble={showBubbles}
                   />
                 ) : (
@@ -311,6 +350,12 @@ type SettingsSectionProps = {
   showBubbles: boolean;
   highlightIssues: boolean;
   overflowCount: number;
+  selectedSkin: string;
+  availableSkins: SkinMetadata[];
+  skinWarnings: string[];
+  skinLoading: boolean;
+  skinError: string | null;
+  onSelectSkin: (skinId: string) => Promise<void>;
   onToggleShowBubbles: () => void;
   onToggleHighlightIssues: () => void;
 };
@@ -319,6 +364,12 @@ function SettingsSection({
   showBubbles,
   highlightIssues,
   overflowCount,
+  selectedSkin,
+  availableSkins,
+  skinWarnings,
+  skinLoading,
+  skinError,
+  onSelectSkin,
   onToggleShowBubbles,
   onToggleHighlightIssues,
 }: SettingsSectionProps) {
@@ -343,6 +394,65 @@ function SettingsSection({
             onToggle={onToggleHighlightIssues}
             pressed={highlightIssues}
           />
+        </div>
+
+        <div className="do:mt-5 do:rounded-[1.5rem] do:border do:border-orange-100 do:bg-orange-50/60 do:p-4">
+          <div className="do:flex do:flex-wrap do:items-start do:justify-between do:gap-3">
+            <div>
+              <h3 className="do:text-sm do:font-semibold do:text-slate-950">스킨 선택</h3>
+              <p className="do:mt-1 do:text-sm do:leading-6 do:text-slate-600">
+                ~/.hermes/skins에 추가한 커스텀 스킨을 포함해 현재 렌더링에 사용할 캐릭터 세트를 바로 전환합니다.
+              </p>
+            </div>
+            <span className="do:rounded-full do:bg-white do:px-3 do:py-1 do:text-xs do:font-semibold do:text-orange-700">selectedSkin: {selectedSkin}</span>
+          </div>
+
+          <div className="do:mt-4 do:grid do:gap-3 md:do:grid-cols-2">
+            {skinLoading ? <p className="do:text-sm do:text-slate-500">스킨 카탈로그를 불러오는 중입니다.</p> : null}
+            {!skinLoading && availableSkins.length === 0 ? <p className="do:text-sm do:text-slate-500">표시 가능한 스킨이 아직 없습니다.</p> : null}
+            {availableSkins.map((skin) => (
+              <button
+                key={skin.id}
+                aria-label={`${skin.name} 스킨 선택`}
+                aria-pressed={selectedSkin === skin.id}
+                className={`do:flex do:flex-col do:items-start do:gap-2 do:rounded-[1.25rem] do:border do:px-4 do:py-3 do:text-left do:transition ${
+                  selectedSkin === skin.id
+                    ? 'do:border-orange-400 do:bg-white do:ring-2 do:ring-orange-200'
+                    : 'do:border-orange-100 do:bg-white/80 hover:do:border-orange-200'
+                }`}
+                disabled={skinLoading}
+                onClick={() => {
+                  void onSelectSkin(skin.id);
+                }}
+                type="button"
+              >
+                <div className="do:flex do:w-full do:items-center do:justify-between do:gap-3">
+                  <span className="do:text-sm do:font-semibold do:text-slate-950">{skin.name}</span>
+                  <span className="do:rounded-full do:bg-orange-100 do:px-2.5 do:py-1 do:text-[11px] do:font-semibold do:text-orange-700">{skin.source}</span>
+                </div>
+                <p className="do:text-xs do:text-slate-500">{skin.description ?? '기본 도로롱 스킨'}</p>
+                <p className="do:text-xs do:text-slate-500">지원 상태: {skin.availableStates.join(', ')}</p>
+              </button>
+            ))}
+          </div>
+
+          {skinError ? (
+            <div className="do:mt-4 do:rounded-2xl do:border do:border-rose-200 do:bg-rose-50 do:px-4 do:py-3 do:text-sm do:text-rose-900">
+              <p className="do:font-semibold">스킨 선택 오류</p>
+              <p className="do:mt-1">{skinError}</p>
+            </div>
+          ) : null}
+
+          {skinWarnings.length > 0 ? (
+            <div className="do:mt-4 do:rounded-2xl do:border do:border-amber-200 do:bg-amber-50 do:px-4 do:py-3 do:text-sm do:text-amber-900">
+              <p className="do:font-semibold">스킨 로딩 경고</p>
+              <ul className="do:mt-2 do:list-disc do:space-y-1 do:pl-5">
+                {skinWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </div>
 

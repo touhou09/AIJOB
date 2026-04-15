@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentRosterPayload, AgentSnapshot } from '../shared/types';
+import type { AgentRosterPayload, AgentSnapshot, SkinCatalog, SkinMetadata } from '../shared/types';
 
 const MAX_TIMELINE_EVENTS = 10;
 
@@ -24,10 +24,14 @@ type OfficeStoreState = {
   activeView: OfficeViewMode;
   showBubbles: boolean;
   highlightIssues: boolean;
+  selectedSkin: string;
+  availableSkins: SkinMetadata[];
+  skinWarnings: string[];
   recentEvents: TimelineEvent[];
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   replaceRoster: (payload: AgentRosterPayload) => void;
+  replaceSkinCatalog: (catalog: SkinCatalog) => void;
   setActiveView: (view: OfficeViewMode) => void;
   toggleShowBubbles: () => void;
   toggleHighlightIssues: () => void;
@@ -66,6 +70,9 @@ const initialState = {
   activeView: 'office' as OfficeViewMode,
   showBubbles: true,
   highlightIssues: true,
+  selectedSkin: 'dororong',
+  availableSkins: [] as SkinMetadata[],
+  skinWarnings: [] as string[],
   recentEvents: [] as TimelineEvent[],
 };
 
@@ -75,7 +82,10 @@ export const useOfficeStore = create<OfficeStoreState>((set) => ({
     set({ loading });
   },
   setError: (error) => {
-    set({ error, loading: false });
+    set((state) => ({
+      error,
+      loading: error ? false : state.loading,
+    }));
   },
   replaceRoster: (payload) => {
     set((state) => ({
@@ -88,6 +98,13 @@ export const useOfficeStore = create<OfficeStoreState>((set) => ({
       recentEvents: [...buildTimelineEvents(state.agents, payload.agents, payload.fetchedAt), ...state.recentEvents].slice(0, MAX_TIMELINE_EVENTS),
     }));
   },
+  replaceSkinCatalog: (catalog) => {
+    set({
+      selectedSkin: catalog.selectedSkin,
+      availableSkins: catalog.skins,
+      skinWarnings: catalog.warnings,
+    });
+  },
   setActiveView: (activeView) => {
     set({ activeView });
   },
@@ -98,6 +115,11 @@ export const useOfficeStore = create<OfficeStoreState>((set) => ({
     set((state) => ({ highlightIssues: !state.highlightIssues }));
   },
   reset: () => {
-    set(initialState);
+    set((state) => ({
+      ...initialState,
+      selectedSkin: state.selectedSkin,
+      availableSkins: state.availableSkins,
+      skinWarnings: state.skinWarnings,
+    }));
   },
 }));
