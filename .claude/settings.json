@@ -76,6 +76,9 @@
       "Bash(vault *)",
       "Bash(ov *)",
       "Bash(openviking *)",
+      "Bash(hermes *)",
+      "Bash(backend *)",
+      "Bash(launchctl *)",
       "Edit(*)",
       "Write(*)"
     ],
@@ -87,7 +90,10 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_SPAWN_BACKEND": "tmux",
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
+    "HERMES_HOME": "~/.hermes",
+    "WIKI_PATH": "~/wiki",
+    "OBSIDIAN_VAULT_PATH": "~/wiki"
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
@@ -113,11 +119,6 @@
             "type": "command",
             "command": "bash .claude/hooks/stop-incremental-log.sh",
             "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/jira-done-sync.sh",
-            "timeout": 15
           }
         ]
       }

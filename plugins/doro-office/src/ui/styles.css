@@ -1,0 +1,64 @@
+@import 'tailwindcss';
+
+@config '../../tailwind.config.ts';
+
+:root {
+  color: #0f172a;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@keyframes dororong-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes dororong-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: saturate(1);
+  }
+
+  50% {
+    transform: scale(1.04);
+    filter: saturate(1.2);
+  }
+}
+
+@keyframes dororong-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-2px);
+  }
+
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes dororong-float {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.92;
+  }
+
+  50% {
+    transform: translateY(3px);
+    opacity: 0.78;
+  }
+}

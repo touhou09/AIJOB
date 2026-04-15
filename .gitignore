@@ -43,6 +43,14 @@ npm-debug.log*
 
 # Claude session artifacts
 .claude/session-log.jsonl
+.claude/tmp/
 
 # Atlassian token (로컬 전용)
 .claude/.atlassian-token
+
+# OpenClaw 잔재
+.omc/
+*.cover
+
+# Paperclip probe temp
+.tmp-paperclip/

@@ -32,6 +32,8 @@ TODO.md (일일) → work/ (주간) → docs/ (장기)
 | 카테고리 | 파일 | 범위 |
 |----------|------|------|
 | 트러블슈팅 | `.claude/work/troubleshooting.md` | 장애, 버그, 예기치 않은 이슈 |
+| Hermes 인프라 (구) | `.claude/work/hermes-infra.md` | v1 하네스 + CTO 루프 이력 (deprecated, 정리 예정) |
+| Harness v2 | `.claude/work/harness-v2.md` | 7-agent 파이프라인 (CEO/Planner/Inspector/Coder/QA/DevOps/Monitor) |
 
 > 새 작업 계열 발생 시 카테고리 자동 추가
 

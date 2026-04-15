@@ -27,15 +27,9 @@ if [ -f "$DECISIONS_FILE" ]; then
 $(cat "$DECISIONS_FILE")"
 fi
 
-# 4. Jira → TODO.md 자동 동기화 (하루 1회)
-SYNC_MARKER="/tmp/claude-jira-sync-$(date +%Y%m%d)"
-SYNC_SCRIPT="$HOME/.claude/hooks/jira-sync.sh"
-if [ ! -f "$SYNC_MARKER" ] && [ -f "$SYNC_SCRIPT" ]; then
-  bash "$SYNC_SCRIPT" "$CWD" 2>/dev/null && touch "$SYNC_MARKER"
-fi
-
-# 5. TODO.md
+# 4. TODO.md
 TODO_FILE="$CWD/.claude/TODO.md"
+
 if [ -f "$TODO_FILE" ]; then
   PARTS="$PARTS
 $(cat "$TODO_FILE")"
@@ -68,6 +62,34 @@ if [ -f "$LOG_FILE" ]; then
     PARTS="$PARTS
 ## Last Session
 - $TS: $SUMMARY"
+  fi
+fi
+
+# 8. Hermes 상태 확인
+if command -v hermes &>/dev/null; then
+  HERMES_VER=$(hermes --version 2>/dev/null | head -1)
+  GW_STATUS=$(launchctl list 2>/dev/null | grep hermes | awk '{print $3 " (PID:" $1 ")"}' | head -1)
+  CRON_COUNT=$(hermes cron list 2>/dev/null | grep -c "\[active\]" || echo "0")
+
+  PARTS="$PARTS
+## Hermes Status
+- Version: $HERMES_VER
+- Gateway: ${GW_STATUS:-not running}
+- Cron jobs: ${CRON_COUNT} active"
+
+  # Paperclip 상태 (타임아웃 2초)
+  PCLIP=$(curl -s --max-time 2 https://paperclip.dororong.dev/api/health 2>/dev/null)
+  if [ -n "$PCLIP" ]; then
+    PARTS="$PARTS
+- Paperclip: online"
+  fi
+
+  # Wiki 상태
+  WIKI_PATH="${WIKI_PATH:-$HOME/wiki}"
+  if [ -d "$WIKI_PATH" ]; then
+    WIKI_PAGES=$(find "$WIKI_PATH" -name "*.md" -not -path "*/raw/*" 2>/dev/null | wc -l | tr -d ' ')
+    PARTS="$PARTS
+- Wiki: ${WIKI_PAGES} pages"
   fi
 fi
 
