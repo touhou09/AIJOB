@@ -110,3 +110,6 @@ AIJOB/.claude/
 8. personal 비서 프로필 신설 → CEO→personal gateway 전환 → 자율 실행 (approvals: off)
 9. Obsidian 설치 + #ceo 채널 생성 + 유저 초대
 10. 에러 0 달성 (gho 토큰 + allowlist + memvid dummy key) + SOUL 7개 정비 (150줄, stale 경로, exfil clean)
+
+## Last Session (2026-04-16)
+- SCRUM-102: `doro-office.dororong.dev` ingress → `http://localhost:3102` 매핑과 web/API 포트 분리를 문서화하고 Jira를 `완료`로 전환함.

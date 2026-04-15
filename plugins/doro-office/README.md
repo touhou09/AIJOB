@@ -71,10 +71,17 @@ PY
 - Page + Sidebar + Dashboard widget slot UI
 - Worker의 `/api/companies/{id}/agents` 1초 폴링 + refresh action
 - SVG 오피스 배경과 7개 좌석 고정 좌표 배치
-- `표시 옵션` 탭의 말풍선 / 오류 강조 토글
+- `표시 옵션` 탭의 말풍선 / 오류 상태 강조 토글
 - overflow roster fallback 카드 리스트
 - 최근 이벤트 timeline
 - 수동 새로고침과 기본 로딩/오류/빈 상태 UI
+
+## 운영 포트 맵
+
+- public ingress: `doro-office.dororong.dev` → `http://localhost:3102`
+- doro-office web runtime: `PORT=3102 npm run start --workspace @dororong/doro-office-web`
+- companion API service: `PORT=3001 npm run dev:api`
+- 브라우저 요청은 Cloudflare ingress가 가리키는 web runtime(`3102`)로 들어가며, API 프로세스(`3001`)는 별도 로컬 서비스로 유지한다.
 
 ## 제외 범위
 

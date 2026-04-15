@@ -17,6 +17,22 @@
   - `git tag -a v0.0.1 -m "v0.0.1 release"`
   - `git show --stat --decorate v0.0.1`
 
+## SCRUM-102 cloudflared ingress / runtime port mapping
+
+- **날짜**: 2026-04-16
+- **결과**: PASS
+- **확인된 ingress**: `/etc/cloudflared/config.yml` 의 `doro-office.dororong.dev` → `http://localhost:3102`
+- **확인된 런타임 포트**
+  - web runtime: `3102`
+  - companion API service: `3001`
+- **운영 의미**
+  - public hostname은 Cloudflare ingress가 가리키는 web runtime(`3102`)로 종단한다.
+  - API 프로세스(`3001`)는 별도 로컬 서비스로 유지하고, public ingress 대상으로 혼동하지 않는다.
+- **검증 명령**
+  - `read_file /etc/cloudflared/config.yml`
+  - `lsof -nP -iTCP -sTCP:LISTEN | egrep 'cloudflared|doro-office|3102|3001'`
+- **요약**: cloudflared ingress와 doro-office runtime/api 포트의 현재 매핑을 문서에 고정했다.
+
 ## SCRUM-71 QA
 
 - **날짜**: 2026-04-15
