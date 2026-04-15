@@ -33,6 +33,23 @@
   - `lsof -nP -iTCP -sTCP:LISTEN | egrep 'cloudflared|doro-office|3102|3001'`
 - **요약**: cloudflared ingress와 doro-office runtime/api 포트의 현재 매핑을 문서에 고정했다.
 
+## SCRUM-110 운영 API URL / ingress / env 매핑
+
+- **날짜**: 2026-04-16
+- **결과**: PASS
+- **확인된 ingress**: `doro-office.dororong.dev` → `http://localhost:3102`
+- **확인된 런타임 포트**
+  - web runtime: `3102`
+  - companion API service: `3001`
+- **운영 env 정리**
+  - `DORO_OFFICE_AGENT_API_URL`를 쓰는 외부 래퍼/프록시의 로컬 개발 기본값은 `http://localhost:3001`
+  - public domain에서는 web ingress와 분리된 실제 API origin을 별도 설정한다.
+  - public ingress는 web runtime(`3102`)만 노출하고, API 서비스(`3001`)는 별도 origin으로 분리
+- **검증 명령**
+  - `read_file /etc/cloudflared/config.yml`
+  - `lsof -nP -iTCP -sTCP:LISTEN | egrep 'cloudflared|doro-office|3102|3001'`
+- **요약**: 운영 URL, ingress, env 매핑을 public web runtime와 companion API origin 기준으로 다시 정리했다.
+
 ## SCRUM-71 QA
 
 - **날짜**: 2026-04-15

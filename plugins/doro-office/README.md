@@ -76,12 +76,13 @@ PY
 - 최근 이벤트 timeline
 - 수동 새로고침과 기본 로딩/오류/빈 상태 UI
 
-## 운영 포트 맵
+## 운영 URL / env 매핑
 
 - public ingress: `doro-office.dororong.dev` → `http://localhost:3102`
 - doro-office web runtime: `PORT=3102 npm run start --workspace @dororong/doro-office-web`
 - companion API service: `PORT=3001 npm run dev:api`
-- 브라우저 요청은 Cloudflare ingress가 가리키는 web runtime(`3102`)로 들어가며, API 프로세스(`3001`)는 별도 로컬 서비스로 유지한다.
+- 운영 기준: 브라우저/플러그인 표면은 Cloudflare ingress가 가리키는 web runtime(`3102`)로 종단하고, API 호출은 companion API 서비스(`3001`)를 기준으로 분리한다.
+- `DORO_OFFICE_AGENT_API_URL`를 쓰는 외부 래퍼/프록시가 있으면 로컬 개발 기본값은 `http://localhost:3001`로 두고, public domain에서는 web ingress와 분리된 실제 API origin을 별도 설정한다.
 
 ## 제외 범위
 
