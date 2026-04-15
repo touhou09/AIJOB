@@ -4,7 +4,7 @@
 > 대상 이슈: DOR-5 (Hermes Agent 모니터링 서비스 설계)
 
 ## 상태 수렴 스냅샷 (2026-04-12)
-- 현재 구현 기준점은 `~/AIJOB/plugins/doro-office` v0.1.4이다.
+- 현재 구현 기준점은 `~/workspace/doro-office-scrum-46/plugins/doro-office` v0.1.4이다.
 - 실제 플러그인 표면은 Page + Sidebar + Dashboard widget, 1초 polling fallback, 최근 이벤트 timeline, overflow roster, 표시 옵션 UI까지 포함한다.
 - 이 폴더는 착수 전 재기획 워크룸 기록이므로 `03-doro-office-plan.md`와 `04-decisions-snapshot.md`는 역사 문맥 문서다. 최신 구현 범위는 플러그인 README와 각 문서 상단의 최신 메모를 우선 참조한다.
 - 이슈 수렴 기준:
@@ -23,7 +23,7 @@
 - [05-release-log.md](05-release-log.md) — `v0.0.1` 릴리즈 태그와 배포 기록
 
 ## 현재 기준 읽는 순서
-1. `~/AIJOB/plugins/doro-office/README.md` — 실제 설치/기능 범위
+1. `~/workspace/doro-office-scrum-46/plugins/doro-office/README.md` — 실제 설치/기능 범위
 2. `04-decisions-snapshot.md` — 원래 결정과 현재 수렴 상태 비교
 3. `03-doro-office-plan.md` — 어떤 기능이 계획됐고 무엇이 defer 되었는지 확인
 4. 필요 시 `00`~`02` — 초기 재기획 배경 참고

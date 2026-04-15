@@ -16,3 +16,29 @@
 - **증거 명령**
   - `git tag -a v0.0.1 -m "v0.0.1 release"`
   - `git show --stat --decorate v0.0.1`
+
+## SCRUM-71 QA
+
+- **날짜**: 2026-04-15
+- **결과**: PASS
+- **브랜치/커밋**: `scrum-46-openclaw` / `fcc6f08`
+- **검증 명령**
+  - `bun run test`
+  - `bun run lint`
+  - `bun run typecheck`
+  - `bun run build`
+- **요약**: 오피스 레이아웃, overflow roster, 설정 토글, 1초 폴링, worker bridge, OpenClaw roster normalization 경로가 모두 테스트와 빌드에서 통과했다.
+
+## SCRUM-91 Root checkout fix
+
+- **날짜**: 2026-04-15
+- **결과**: PASS
+- **기준점**: `~/workspace/doro-office-scrum-46` checkout을 실제 실행 기준으로 고정
+- **반영 파일**
+  - `docs/doro-office/03-doro-office-plan.md`
+  - `docs/doro-office/README.md`
+  - `docs/doro-office/04-decisions-snapshot.md`
+- **검증 명령**
+  - `git diff -- docs/doro-office/03-doro-office-plan.md docs/doro-office/README.md docs/doro-office/04-decisions-snapshot.md docs/doro-office/05-release-log.md`
+  - `search_files(pattern="~/AIJOB/plugins/doro-office", target="content", path="/Users/yuseungju/workspace/doro-office-scrum-46")`
+- **요약**: 문서 기준 경로를 `~/workspace/doro-office-scrum-46/plugins/doro-office`로 정정해 root checkout의 실제 main 실행 기준을 현재 workspace checkout에 고정했다.

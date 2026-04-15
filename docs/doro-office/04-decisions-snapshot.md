@@ -35,7 +35,7 @@
 
 ## D7. 범위
 - 계획 시점 기준으로는 **MVP-0~3까지 실제 구현**을 목표로 두었다.
-- 2026-04-12 확인 결과 현재 구현본(`~/AIJOB/plugins/doro-office` v0.1.4)은 다음 범위를 이미 포함한다.
+- 2026-04-12 확인 결과 현재 구현본(`~/workspace/doro-office-scrum-46/plugins/doro-office` v0.1.4)은 다음 범위를 이미 포함한다.
   - Page + Sidebar + Dashboard widget surface
   - `agents.read` 기반 1초 polling + manual refresh fallback
   - SVG 오피스 레이아웃 + 7석 배치 + overflow roster

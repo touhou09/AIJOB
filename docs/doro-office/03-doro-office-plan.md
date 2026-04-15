@@ -1,6 +1,6 @@
 # doro-office 구현 계획
 
-> 최신 메모 (2026-04-12): 이 문서는 착수 전 계획 원본이다. 실제 구현 상태는 `~/AIJOB/plugins/doro-office/README.md`와 `04-decisions-snapshot.md`의 수렴 메모를 우선 본다.
+> 최신 메모 (2026-04-15): 이 문서는 착수 전 계획 원본이다. 실제 구현 상태는 `~/workspace/doro-office-scrum-46/plugins/doro-office/README.md`와 `04-decisions-snapshot.md`의 수렴 메모를 우선 본다.
 >
 > 사용자 결정 (2026-04-11):
 > - IP: 2차 창작 / 비영리 범위, 기본 스킨 = 도로롱, 스킨 로더는 있음
