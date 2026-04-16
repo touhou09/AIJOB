@@ -29,7 +29,7 @@ Hermes 6개 프로필, Paperclip, Slack, cron을 한 번에 점검하는 경량 
 - Slack 전달 상태: `~/.hermes/profiles/*/logs/gateway.log*`의 최근 Slack 연결/실패 로그 파싱
 
 ### 2) 스냅샷 파일
-권장 경로: `.claude/tmp/hermes-monitor/latest.json`
+권장 경로: `~/.claude/tmp/hermes-monitor/latest.json`
 - 마지막 수집 시각
 - 컴포넌트별 raw health
 - 최근 alert 목록
@@ -88,7 +88,7 @@ Hermes 6개 프로필, Paperclip, Slack, cron을 한 번에 점검하는 경량 
 ## 운영 방법
 ### 수동 실행
 ```bash
-python3 scripts/hermes_monitor.py --write-snapshot .claude/tmp/hermes-monitor/latest.json
+python3 scripts/hermes_monitor.py --write-snapshot ~/.claude/tmp/hermes-monitor/latest.json
 python3 scripts/hermes_monitor.py --notify --slack-webhook-url "$HERMES_MONITOR_SLACK_WEBHOOK_URL"
 ```
 
@@ -105,7 +105,7 @@ python3 scripts/hermes_monitor.py --notify --slack-webhook-url "$HERMES_MONITOR_
   <string>/usr/bin/python3</string>
   <string>/Users/yuseungju/AIJOB/scripts/hermes_monitor.py</string>
   <string>--write-snapshot</string>
-  <string>/Users/yuseungju/AIJOB/.claude/tmp/hermes-monitor/latest.json</string>
+  <string>/Users/yuseungju/.claude/tmp/hermes-monitor/latest.json</string>
   <string>--notify</string>
 </array>
 ```

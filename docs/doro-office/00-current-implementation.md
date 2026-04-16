@@ -17,7 +17,7 @@
   4. `~/.hermes/profiles/*/logs/agent.log*` → cron 실행 성공/실패 로그 파싱
   5. Paperclip `/api/health` → 서버 지연
   6. Paperclip `/api/companies/{id}/agents` + `/issues` → heartbeat, open/done/cancelled
-- 출력: `.claude/tmp/hermes-monitor/latest.json` 스냅샷 단일 파일
+- 출력: `~/.claude/tmp/hermes-monitor/latest.json` 스냅샷 단일 파일
 - alert 규칙 v1:
   - gateway 누락 (launchctl PID 없음)
   - Paperclip health latency > 1500ms 또는 status != ok
@@ -39,7 +39,7 @@
   - `notification`: Slack 웹훅 전송 결과
   - `alerts`: 즉시 drill-down 대상
 
-### 스냅샷 파일 `.claude/tmp/hermes-monitor/latest.json`
+### 스냅샷 파일 `~/.claude/tmp/hermes-monitor/latest.json`
 - 모니터와 `/hermes-status`의 유일한 공유 인터페이스 (DB 없음)
 - 매 수집 시 덮어씌움 (history 없음)
 - diff 기반 중복 알림 억제: 미구현 (설계 문서 후속 과제로 명시)

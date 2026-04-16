@@ -25,6 +25,11 @@ MODULE = load_module()
 
 
 class HermesStatusTests(unittest.TestCase):
+    def test_default_snapshot_path_uses_canonical_home_directory(self) -> None:
+        expected = Path.home() / ".claude" / "tmp" / "hermes-monitor" / "latest.json"
+
+        self.assertEqual(MODULE.DEFAULT_SNAPSHOT_PATH, expected)
+
     def test_resolve_snapshot_uses_cache_when_fresh(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             snapshot_path = Path(tmp_dir) / "latest.json"

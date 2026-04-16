@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_SNAPSHOT_PATH = Path(".claude/tmp/hermes-monitor/latest.json")
+DEFAULT_SNAPSHOT_PATH = Path("~/.claude/tmp/hermes-monitor/latest.json").expanduser()
 DEFAULT_MAX_AGE_MINUTES = 15
 
 

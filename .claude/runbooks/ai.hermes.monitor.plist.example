@@ -10,7 +10,7 @@
     <string>/usr/bin/python3</string>
     <string>/Users/yuseungju/AIJOB/scripts/hermes_monitor.py</string>
     <string>--write-snapshot</string>
-    <string>/Users/yuseungju/AIJOB/.claude/tmp/hermes-monitor/latest.json</string>
+    <string>/Users/yuseungju/.claude/tmp/hermes-monitor/latest.json</string>
     <string>--notify</string>
   </array>
 

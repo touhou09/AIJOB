@@ -6,12 +6,12 @@
 ## 준비물
 - `HERMES_MONITOR_SLACK_WEBHOOK_URL` 환경변수 또는 plist 내 EnvironmentVariables 설정
 - Paperclip 인증 파일 `~/.paperclip/auth.json`
-- 저장 경로: `/Users/yuseungju/AIJOB/.claude/tmp/hermes-monitor/latest.json`
+- 저장 경로: `~/.claude/tmp/hermes-monitor/latest.json`
 
 ## 수동 점검
 ```bash
 cd /Users/yuseungju/AIJOB
-python3 scripts/hermes_monitor.py --write-snapshot .claude/tmp/hermes-monitor/latest.json
+python3 scripts/hermes_monitor.py --write-snapshot ~/.claude/tmp/hermes-monitor/latest.json
 python3 scripts/hermes_status.py
 python3 scripts/hermes_status.py --refresh
 python3 scripts/hermes_monitor.py --notify --slack-webhook-url "$HERMES_MONITOR_SLACK_WEBHOOK_URL"
@@ -31,7 +31,7 @@ launchctl start ai.hermes.monitor
 ## 확인
 ```bash
 launchctl list | grep ai.hermes.monitor
-cat /Users/yuseungju/AIJOB/.claude/tmp/hermes-monitor/latest.json
+cat ~/.claude/tmp/hermes-monitor/latest.json
 ```
 - JSON에 `notification` 필드가 있으면 마지막 Slack 배달 시도 결과까지 확인 가능
 
