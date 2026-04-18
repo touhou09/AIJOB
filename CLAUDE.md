@@ -1,6 +1,6 @@
 # AIJOB 가이드
 
-AI 협업 구조(.claude) 관리 레포. 브랜치별 프로필(master/personal/work)로 Claude Code 환경을 세팅한다.
+AI 협업 구조(.claude/.codex) 관리 레포. 브랜치별 프로필(master/personal/work/hermes/codex)로 Claude Code와 Codex 환경을 세팅한다.
 
 ## 컨텍스트 로딩
 
@@ -34,13 +34,15 @@ TODO.md (일일) → work/ (주간) → docs/ (장기)
 | 트러블슈팅 | `.claude/work/troubleshooting.md` | 장애, 버그, 예기치 않은 이슈 |
 | Hermes 인프라 (구) | `.claude/work/hermes-infra.md` | v1 하네스 + CTO 루프 이력 (deprecated, 정리 예정) |
 | Harness v2 | `.claude/work/harness-v2.md` | 7-agent 파이프라인 (CEO/Planner/Inspector/Coder/QA/DevOps/Monitor) |
+| Codex 환경 | `.claude/work/codex.md` | Codex 전용 AGENTS.md + .codex 호환 레이어 |
 
 > 새 작업 계열 발생 시 카테고리 자동 추가
 
 ## 핵심 명령어
-- `init-mac.sh [target] [branch]` — macOS에서 Claude Code 환경 복제
-- `init-linux.sh [target] [branch]` — Linux/WSL에서 Claude Code 환경 복제
+- `init-mac.sh [target] [branch]` — macOS에서 Claude Code/Codex 환경 복제
+- `init-linux.sh [target] [branch]` — Linux/WSL에서 Claude Code/Codex 환경 복제
 - 경로 생략 시 전역(~/.claude/) 세팅
+- Codex 환경은 `codex` 브랜치 사용: `init-mac.sh [target] codex`
 
 ## 핵심 규칙
 - Jira가 원본 (이중 관리 금지)

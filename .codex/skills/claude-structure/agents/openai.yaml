@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude Structure"
+  short_description: "Use legacy Claude docs safely from Codex"
+  default_prompt: "Use the local Claude structure compatibility workflow to read relevant ~/.claude guidance, translate it to Codex-native behavior, and complete the task without importing runtime data or secrets."

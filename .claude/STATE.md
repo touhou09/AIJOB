@@ -3,6 +3,8 @@
 > 최종 업데이트: 2026-04-12
 
 ## 현재 단계
+- **Codex 브랜치 신설**: `hermes` 기준 별도 `codex` worktree에서 `AGENTS.md` + `.codex/skills/claude-structure` + 설치 스크립트 확장 관리 시작 (2026-04-18).
+
 - **단일 파이프라인 + 자율 비서 구조 완성**: DM `@ame` = personal 비서 (자율 실행, 승인 불필요), Paperclip = 직렬 파이프라인 (Planner→Inspector→Coder→QA→merge→다음 task)
 - **v2 full-cycle 실증 완료**: DOR-69~77 9건 done, main 8 commits (2332줄 src + 42 tests + build 13.95KB)
 - **단일 파이프라인**: 병렬→직렬 전환. conflict 구조적 0%. QA pass → 즉시 squash merge → Planner 재wakeup

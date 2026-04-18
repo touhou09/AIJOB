@@ -6,7 +6,7 @@ REPO_URL="https://github.com/touhou09/AIJOB.git"
 usage() {
   echo "Usage: $0 [target-directory] [branch]"
   echo ""
-  echo "  target-directory  .claude/ 구조를 세팅할 프로젝트 경로 (생략 시 전역 ~/.claude/)"
+  echo "  target-directory  .claude/.codex 구조를 세팅할 프로젝트 경로 (생략 시 전역 ~/.claude, ~/.codex)"
   echo "  branch            AIJOB 브랜치 (기본: master)"
   echo ""
   echo "Examples:"
@@ -23,13 +23,15 @@ usage() {
 BRANCH="${2:-master}"
 GLOBAL_MODE=false
 
-if [[ $# -lt 1 ]]; then
+if [[ $# -lt 1 || -z "${1:-}" ]]; then
   GLOBAL_MODE=true
   TARGET="$HOME"
   CLAUDE_DIR="$HOME/.claude"
+  CODEX_DIR="$HOME/.codex"
 else
   TARGET="$(realpath "$1")"
   CLAUDE_DIR="$TARGET/.claude"
+  CODEX_DIR="$TARGET/.codex"
   if [[ ! -d "$TARGET" ]]; then
     echo "Error: $TARGET 디렉토리가 존재하지 않습니다."
     exit 1
@@ -72,6 +74,29 @@ else
   echo "✓ CLAUDE.md 덮어쓰기"
 fi
 
+# AGENTS.md (Codex)
+if [[ -f "$TMPDIR/AGENTS.md" ]]; then
+  if [[ "$GLOBAL_MODE" == true ]]; then
+    mkdir -p "$CODEX_DIR"
+    if [[ -f "$CODEX_DIR/AGENTS.md" ]]; then
+      MARKER="# --- AIJOB Codex Template ---"
+      if grep -qF "$MARKER" "$CODEX_DIR/AGENTS.md" 2>/dev/null; then
+        sed -i "/$MARKER/,\$d" "$CODEX_DIR/AGENTS.md"
+      fi
+      echo "" >> "$CODEX_DIR/AGENTS.md"
+      echo "$MARKER" >> "$CODEX_DIR/AGENTS.md"
+      cat "$TMPDIR/AGENTS.md" >> "$CODEX_DIR/AGENTS.md"
+      echo "✓ ~/.codex/AGENTS.md 병합 (기존 유지 + AIJOB Codex 템플릿 추가)"
+    else
+      cp "$TMPDIR/AGENTS.md" "$CODEX_DIR/AGENTS.md"
+      echo "✓ ~/.codex/AGENTS.md 생성"
+    fi
+  else
+    cp "$TMPDIR/AGENTS.md" "$TARGET/AGENTS.md"
+    echo "✓ AGENTS.md 덮어쓰기"
+  fi
+fi
+
 # CONTEXT.md, DECISIONS.md, STATE.md (레포 우선 덮어쓰기)
 for f in CONTEXT.md DECISIONS.md STATE.md TODO.md weekly.md roadmap.md; do
   if [[ -f "$TMPDIR/.claude/$f" ]]; then
@@ -104,6 +129,24 @@ if [[ -f "$TMPDIR/.claude/settings.json" ]]; then
     cp "$TMPDIR/.claude/settings.json" "$CLAUDE_DIR/settings.json"
     echo "✓ .claude/settings.json 덮어쓰기"
   fi
+fi
+
+# Codex skills/compat 병합 (Codex branch 전용)
+if [[ -d "$TMPDIR/.codex/skills" ]]; then
+  mkdir -p "$CODEX_DIR/skills"
+  for d in "$TMPDIR/.codex/skills/"*; do
+    [[ ! -d "$d" ]] && continue
+    name="$(basename "$d")"
+    mkdir -p "$CODEX_DIR/skills/$name"
+    cp -R "$d"/. "$CODEX_DIR/skills/$name"/
+    echo "✓ .codex/skills/$name 병합"
+  done
+fi
+
+if [[ -d "$TMPDIR/.codex/claude-compat" ]]; then
+  mkdir -p "$CODEX_DIR/claude-compat"
+  cp -R "$TMPDIR/.codex/claude-compat"/. "$CODEX_DIR/claude-compat"/
+  echo "✓ .codex/claude-compat 병합"
 fi
 
 # --- 병합 대상 (기존 유지 + 없는 파일만 추가) ---
@@ -237,6 +280,8 @@ if [[ "$GLOBAL_MODE" == true ]]; then
   echo "  ~/.claude/TODO.md        — 오늘의 작업 (Jira 동기화)"
   echo "  ~/.claude/CONTEXT.md     — 컨텍스트"
   echo "  ~/.claude/settings.json  — 설정"
+  echo "  ~/.codex/AGENTS.md       — Codex 가이드"
+  echo "  ~/.codex/skills/         — Codex 스킬"
 else
   echo "완료! $TARGET 에 Claude Code 환경이 세팅되었습니다."
   echo ""
@@ -245,4 +290,6 @@ else
   echo "  .claude/TODO.md        — 오늘의 작업 (Jira 동기화)"
   echo "  .claude/CONTEXT.md     — 프로젝트 컨텍스트 (수정 필요)"
   echo "  .claude/endpoints/     — 엔드포인트 관리"
+  echo "  AGENTS.md              — Codex 세션 가이드"
+  echo "  .codex/skills/         — Codex 스킬"
 fi
