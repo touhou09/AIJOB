@@ -32,12 +32,21 @@ TODO.md (일일) → work/ (주간) → docs/ (장기)
 | 카테고리 | 파일 | 범위 |
 |----------|------|------|
 | 트러블슈팅 | `.claude/work/troubleshooting.md` | 장애, 버그, 예기치 않은 이슈 |
+| 업무 Flow Harness | `.claude/rules/flow-harness-policy.md` | 요구사항 정의, flow/tool 설계, 검증 기록, 결과 보고, 티켓 trace |
 
 > 새 작업 계열 발생 시 카테고리 자동 추가
+
+## 업무 Flow Harness
+- M+ 업무는 실행 전 요구사항 카드와 업무 정의서를 만든다.
+- 구현/운영 조치는 테스트 방식과 실제 검증 기록 없이는 완료 처리하지 않는다.
+- 완료 시 결과 보고서와 티켓 코멘트 trace를 남긴다.
+- 세부 정책: `.claude/rules/flow-harness-policy.md`
+- 템플릿: `.claude/runbooks/flow-harness-templates.md`
 
 ## 핵심 명령어
 - `init-mac.sh [target] [branch]` — macOS에서 Claude Code 환경 복제
 - `init-linux.sh [target] [branch]` — Linux/WSL에서 Claude Code 환경 복제
+- `.claude/commands/flow-harness.md` — M+ 업무 요구사항/flow/tool/검증/보고/티켓 trace 절차
 - 경로 생략 시 전역(~/.claude/) 세팅
 
 ## 핵심 규칙

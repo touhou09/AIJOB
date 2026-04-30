@@ -91,6 +91,16 @@ description: "CLAUDE.md, settings.json, work 카테고리 생성 템플릿"
 - {date}: {변경 내용} (사유)
 ```
 
+## Flow Harness 템플릿
+
+M+ 업무의 요구사항 카드, 업무 정의서, 구현 테스트 기록, 결과 보고서, 티켓 코멘트 trace 템플릿은 아래 파일을 사용한다.
+
+```text
+.claude/runbooks/flow-harness-templates.md
+```
+
+적용 정책은 `.claude/rules/flow-harness-policy.md`, 실행 절차는 `.claude/commands/flow-harness.md`를 따른다.
+
 ## settings.json 스택별 예시
 
 ### Python

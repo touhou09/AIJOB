@@ -12,6 +12,18 @@ description: "AI 세션 시작/종료 운영 정책"
 5. `.claude/TODO.md` 읽고 오늘의 작업 확인 (Jira Ready와 항상 일치)
 6. 사용자 요청에 해당하는 `.claude/work/{category}.md` 로드
 
+## 업무 Flow Harness Gate
+
+M+ 업무나 외부 팀/운영 영향이 있는 업무는 실행 전에 `.claude/rules/flow-harness-policy.md`를 적용한다.
+
+1. Requirement card로 요청 배경, 범위, 완료 조건, 검증 증거를 정의한다.
+2. Work definition draft에 flow, tool/채널, 역할, 리스크/롤백을 기록한다.
+3. 구현/운영 조치 후 implementation test record에 실제 테스트 방식과 결과를 남긴다.
+4. 완료 시 final result report를 작성하고 티켓 코멘트로 링크/결론/후속을 공유한다.
+5. 방향성 변경, 피벗, 개선사항 발견은 티켓 코멘트 trace에 남긴다.
+
+단순 S 작업은 전체 산출물을 생략할 수 있지만, 완료 조건과 검증 근거는 응답에 남긴다.
+
 ## 문서 자동 갱신
 
 ### 원칙: 작업 단위로 즉시 갱신한다. 세션 종료까지 미루지 않는다.
