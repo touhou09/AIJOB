@@ -150,6 +150,32 @@
 - **참조**: `~/gbrain/`, [garrytan/gbrain](https://github.com/garrytan/gbrain)
 - **Deprecated**: AD-003 (LLM Wiki)
 
+## AD-016: LLM Wiki 2-wiki 구조 — 공용 위키 + 개별 위키
+- **일시**: 2026-04-14
+- **결정**:
+  1. **공용 위키** (`~/llm-wiki/`): 팀 전체 공유 지식. Obsidian vault로 등록. specs/, tech/, projects/ 등 기존 구조 유지
+  2. **개별 위키** (`~/.hermes/profiles/{agent}/wiki/`): 에이전트별 도메인 지식 (패턴, 발견사항, 절차). 각 프로필 내부에 SCHEMA/index/log 초기화
+  3. **도구 분담**: 쓰기=마크다운 직접 생성, 탐색=`obsidian-cli list/print`, 검색=Memvid `search_memory`/`ask_memory` (읽기 전용)
+  4. **Memvid 쓰기 불가**: `OPENAI_API_KEY: disabled`로 `add_content` 사용 불가. 인덱스 갱신은 DevOps 배치로 별도 처리
+  5. **보일러플레이트 삭제**: 기존 "LLM Wiki 지식층" 5줄 공통 블록(전 에이전트 전체 W) 삭제 → 에이전트별 접근 권한 테이블이 유일한 권한 소스
+  6. **Tier 제도와 병존**: Tier(세션/운영) + 공용 위키(팀 지식) + 개별 위키(에이전트 지식) 3-layer. Tier에서 영구 보존 가치 있는 건 공용 위키로 승격
+  7. **DevOps lint**: 주간 (orphan page, broken wikilink, 30일 미갱신), 월간 (log 아카이브, index 재계산)
+- **이유**: 4자 회의(CEO/CTO/COO/시니어) 결과. CEO "agents/ 디렉토리는 Hermes memories/와 이중관리" → 프로필 내부 wiki/로 해결. CTO "보일러플레이트가 접근 테이블을 무력화" → 삭제. 시니어 "Memvid 미초기화 상태에서 참조하면 토큰 낭비" → 읽기 전용으로 한정. 리서치 기반: Karpathy 원본(ingest/query/lint), redmizt "Beyond the Wiki"(에이전트별 scratch 분리), v2(confidence scoring 향후 도입)
+- **상태**: 완료 (SOUL 9개 + 개별 위키 9개 + Obsidian vault)
+- **참조**: `~/llm-wiki/`, `~/.hermes/profiles/*/wiki/`, `~/.hermes/profiles/*/SOUL.md` "## 위키 시스템" 섹션
+- **Supersedes**: AD-011 (gbrain — PGLite 폐기, 위키 구조는 유지), AD-003 (LLM Wiki 원안 — Obsidian+Memvid 이중관리 → 단순화)
+
+## AD-017: Hermes v0.9.0 업데이트 + SOUL Jira MCP 전환
+- **일시**: 2026-04-14
+- **결정**:
+  1. Hermes v0.8.0→v0.9.0 업데이트. 로컬 패치 3건(adapter env resolve, local.py expanduser, persistent_shell.py expanduser) 전부 불필요 — v0.9.0에서 persistent_shell.py 삭제 + base.py에 tilde 처리 내장 + adapter는 Paperclip 폐기로 무관
+  2. SOUL.md 7개(CEO/Personal/Coder/Inspector/QA/Monitor/DevOps)에서 Paperclip curl API를 `mcp_jira_jira_*` MCP 도구로 전환. assigneeAgentId → `agent:{name}` 라벨. exfil_curl 우회 코드 삭제
+  3. .env 글로벌 심링크: 8프로필→`~/.hermes/.env`, personal만 자체 파일 유지
+  4. 고아 alias 5개(frontend/cto/backend/data/orchestrator) 삭제
+- **이유**: Paperclip 폐기(04-13)에 따른 SOUL 정합성 복구. Hermes 업데이트로 AD-013 [DEBT] 청산. .env 심링크로 환경변수 일원화
+- **상태**: 완료
+- **참조**: `~/.hermes/profiles/*/SOUL.md`, `~/.hermes/.env`, AD-013 (로컬 패치 — 청산)
+
 ## AD-007: DOR-5 피벗 — 모니터링 UX를 Paperclip 플러그인(doro-office)으로 확장
 - **일시**: 2026-04-11
 - **결정**:
