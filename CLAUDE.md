@@ -1,6 +1,5 @@
 # AIJOB 가이드
 
-AI 협업 구조(.claude/.codex) 관리 레포. 브랜치별 프로필(master/personal/work/hermes/codex)로 Claude Code와 Codex 환경을 세팅한다.
 
 ## 컨텍스트 로딩
 
@@ -32,7 +31,6 @@ TODO.md (일일) → work/ (주간) → docs/ (장기)
 | 카테고리 | 파일 | 범위 |
 |----------|------|------|
 | 트러블슈팅 | `.claude/work/troubleshooting.md` | 장애, 버그, 예기치 않은 이슈 |
-| Hermes 인프라 (구) | `.claude/work/hermes-infra.md` | v1 하네스 + CTO 루프 이력 (deprecated, 정리 예정) |
 | Harness v2 | `.claude/work/harness-v2.md` | 7-agent 파이프라인 (CEO/Planner/Inspector/Coder/QA/DevOps/Monitor) |
 | Codex 환경 | `.claude/work/codex.md` | Codex 전용 AGENTS.md + .codex 호환 레이어 |
 

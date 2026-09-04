@@ -15,6 +15,7 @@ This branch manages the Codex-compatible layer for the AIJOB environment.
 - Prefer concise, concrete status updates.
 - Treat `.claude/CLAUDE.md`, `.claude/STATE.md`, `.claude/CONTEXT.md`, `.claude/DECISIONS.md`, `.claude/TODO.md`, `.claude/rules/`, `.claude/work/`, `.claude/endpoints/`, and `.claude/integrations/` as legacy project knowledge.
 - Use `.codex/skills/claude-structure/SKILL.md` when a task references local `.claude`, Claude commands, AIJOB state, legacy Claude agents, or legacy Claude skills.
+- Use `.codex/skills/flow-harness/SKILL.md` for AIJOB Flow Harness, requirement-first intake, M+ requirement-to-report work, Jira/Confluence trace, or ingkle harness requests.
 - Prefer Codex/OMX-native roles and skills. Use `.claude/agents` and `.claude/skills` only as read-only reference unless explicitly migrating one item.
 
 ## Install

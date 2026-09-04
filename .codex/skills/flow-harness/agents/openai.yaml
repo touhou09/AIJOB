@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIJOB Flow Harness"
+  short_description: "Requirement-to-report workflow harness"
+  default_prompt: "Use the AIJOB Flow Harness to normalize this work into requirements, flow/tool choices, verification evidence, result reporting, and ticket/document trace before or during execution."
