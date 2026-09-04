@@ -61,6 +61,22 @@
 - **[DEBT]**: (a) hermes-paperclip-adapter + hermes-agent 로컬 패치 3건 (npm/git pull 시 원복) (b) CEO SOUL의 스펙 저장 절차가 비서 SOUL로 이관됐지만 CEO에도 잔존 — 정리 필요 (c) doro-monitor README Hard 완료 조건 #2 (설치/지원 섹션) 미충족 (d) main의 tsc 타입 경고 잔존 (런타임 영향 0, 테스트 통과)
 ---
 
+## 2026-04-13: Paperclip→Jira 전환 + 에이전트 대시보드 + Dispatcher [done]
+- **What**: Paperclip 의존 제거. Jira MCP(mcp-atlassian) 8개 프로필 연결 + 서비스 계정 3개(ame-dev/ame-buisness/ame-infra) 배정. Jira Poller(30초 폴링) + Dispatcher 에이전트(라벨 기반 자동 할당) + Slack #ceo 채널 보고 구현. Hermes WebUI(nesquena/hermes-webui) + Doro Dashboard(에이전트 상태 + 캐릭터) 배포
+- **Why**: Paperclip adapter 불안정(env resolve, exfil_curl, wakeup 미발동) → Jira 표준 REST API로 전환. AG2(AutoGen) 검토했으나 Hermes와 공식 통합 없고 전환 비용 과대 → Jira+Hermes 조합이 최소 비용. 단일 파이프라인 해체 → 병렬 작업 가능 (라벨 기반 충돌 체크로 안전성 확보)
+- **Impact**: 전 에이전트가 Jira MCP로 이슈 CRUD 가능. Dispatcher가 미할당 이슈를 자동 분석+할당. 외부 서비스 3개 추가 (hermes.dororong.dev, dashboard.dororong.dev, Jira Cloud SCRUM)
+- **Test**: SCRUM-18 생성 → Dispatcher가 agent:coder 라벨 자동 추가 → Poller가 Coder에 dispatch → #ceo 채널 보고 확인. E2E 성공
+- **Trap**: (1) Python 3.14에서 HTTPServer 소켓이 CLOSED 상태로 떠서 Dashboard 서버 안 뜸 → Bun으로 전환 (2) Jira REST API v2 deprecated (410 Gone) → /search/jql 신규 엔드포인트로 교체 (3) 서비스 계정(accountType:app) assignee 불가 → 라벨 방식으로 전환
+- **[DEBT]**: (a) Paperclip 관련 rules(paperclip-policy.md, cto-review-checklist.md) Jira 기준으로 갱신 필요 (b) Cloudflare tunnel에 paperclip/aivalink/n8n 등 사용 안 하는 route 잔존 (c) Dispatcher SOUL이 ADF description 파싱 못함 — 현재 "(Jira ADF)"로 우회
+---
+
+## 2026-04-14: Hermes v0.9.0 업데이트 + Paperclip→Jira SOUL 전환 + LLM Wiki 2-wiki 구조 [done]
+- **What**: (1) Hermes v0.8.0→v0.9.0 업데이트 (573 commits). 로컬 패치 3건 전부 불필요 (persistent_shell.py 삭제, local.py에 base.py tilde 처리 내장, adapter는 Paperclip 폐기로 무관) (2) SOUL.md 7개(CEO/Personal/Coder/Inspector/QA/Monitor/DevOps)에서 Paperclip curl API를 Jira MCP(`mcp_jira_jira_*`)로 전환 + Tier 컨텍스트 로딩 섹션 추가 (3) 고아 alias 5개(frontend/cto/backend/data/orchestrator) 삭제 + .env 글로벌 심링크 (8개 프로필 → `~/.hermes/.env`, personal만 자체) (4) LLM Wiki 리서치(Karpathy 원본/v2/Beyond the Wiki/nvk 4소스) + 4자 회의 → "공용 위키 + 개별 위키" 2-wiki 구조 확정 (5) SOUL.md 9개에서 "LLM Wiki 지식층" 보일러플레이트 삭제 + "위키 시스템" 섹션(공용/개별)으로 교체. Memvid는 읽기 전용, 쓰기는 마크다운 직접, 탐색은 obsidian-cli (6) 개별 위키 9개 프로필에 `wiki/` 디렉토리 초기화 (SCHEMA/index/log) (7) `~/llm-wiki/` Obsidian vault 설정 + obsidian-cli default vault 등록
+- **Why**: Paperclip 폐기(04-13)에 이어 에이전트 SOUL의 Paperclip 잔재 정리. LLM Wiki는 기존에 "전 에이전트 전체 쓰기" 보일러플레이트가 접근 테이블과 모순 + Memvid 미초기화 + Planner/Dispatcher 위키 규칙 부재 — 리서치 결과 "에이전트별 scratch(개별) + 공유 knowledge(공용)" 분리가 업계 합의. agents/ 디렉토리 대신 Hermes 프로필 구조(`~/.hermes/profiles/{p}/wiki/`) 활용으로 이중 관리 방지
+- **Impact**: 전 에이전트 Jira MCP 기반 통일. [DEBT] 로컬 패치 3건 청산. 위키 2-wiki 운영 기반 마련
+- **Test**: Paperclip 참조 0건 (9개 SOUL grep), 위키 시스템 섹션 9/9, 개별 위키 디렉토리 9/9, Hermes v0.9.0 doctor 통과
+---
+
 ## 2026-04-11: CEO Slack gateway 연결 + OpenClaw 좀비 제거 [done]
 - **What**: CEO 프로필에 기존 Slack Ame 봇 재사용 (root `~/.hermes/.env`의 `SLACK_BOT_TOKEN`/`SLACK_APP_TOKEN`을 `~/.hermes/profiles/ceo/.env`에 복사). config.yaml에 `platform_toolsets: slack` 추가. `ceo gateway install` 로 launchd 등록 (`ai.hermes.gateway-ceo`). 기존 pairing 실패 원인이었던 openclaw cron 2줄(`*/2 * * * * openclaw-gateway-keepalive.sh`, `0 9 * * * openclaw-update-check.sh`) 제거
 - **Why**: CEO 티키타카를 Mac 터미널 고정에서 해방. 옵션 B(기존 봇 재사용) 선택 — 새 Telegram 봇 생성 대비 즉시 가능. 단일 Slack 앱이라 향후 Monitor 알림 등 다른 메시징은 Phase C에서 별도 앱 필요
